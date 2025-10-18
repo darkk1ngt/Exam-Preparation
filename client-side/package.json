@@ -1,0 +1,23 @@
+{
+  "name": "client-side",
+  "version": "1.0.0",
+  "source": "src/index.html",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "parcel -p 3000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "parcel": "^2.16.0"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.4",
+    "react-router-dom": "^7.9.4"
+  }
+}
