@@ -1,19 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
-import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
-function Register(props) {
+function Login(props) {
   const { setMessage } = props;
-  const navigate = useNavigate();
   const { checkAuthStatus } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const response = await fetch("/api/register", {
+    const response = await fetch("/api/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({
         email: event.target.email.value,
         password: event.target.password.value,
@@ -22,40 +22,20 @@ function Register(props) {
     const data = await response.json();
     console.log(data);
 
-    if (data.success) {
-      setMessage("Successfully registered.", "success");
-      setTimeout(async () => {
-        const response = await fetch("/api/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            email: event.target.email.value,
-            password: event.target.password.value,
-          }),
-        });
-        const data2 = await response.json();
-
-        if (response.ok) {
-          setMessage(data2.message, "success");
-          await checkAuthStatus();
-          navigate("/");
-        } else {
-          setMessage(data2.message, "error");
-        }
-      }, 1000);
+    if (response.ok) {
+      setMessage(data.message, "success");
+      await checkAuthStatus();
+      navigate("/");
     } else {
-      setMessage(data.message || "Registration failed", "error");
+      setMessage(data.message, "error");
     }
   };
 
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>Create Account</h1>
-        <p className="auth-subtitle">Join us today</p>
+        <h1>Welcome Back</h1>
+        <p className="auth-subtitle">Sign in to your account</p>
         <form onSubmit={handleSubmit} className="auth-form" autoComplete="off">
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
@@ -67,7 +47,6 @@ function Register(props) {
               autoComplete="off"
             />
           </div>
-
           <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
@@ -78,14 +57,16 @@ function Register(props) {
               autoComplete="off"
             />
           </div>
-
-          <button className="btn btn-primary auth-submit">
-            Create Account
+          <button type="submit" className="btn btn-primary auth-submit">
+            Sign In
           </button>
         </form>
         <div className="auth-links">
-          <Link to="/login" className="auth-link">
-            Already have an account? <span>Sign in here</span>
+          <Link to="/register" className="auth-link">
+            Don't have an account? <span>Register here</span>
+          </Link>
+          <Link to="/forgot" className="auth-link">
+            <span>Forgot your password?</span>
           </Link>
         </div>
       </div>
@@ -93,4 +74,4 @@ function Register(props) {
   );
 }
 
-export default Register;
+export default Login;
