@@ -9,8 +9,8 @@
 1. [Architecture Overview](#architecture-overview)
 2. [Backend Tutorial](#backend-tutorial)
 3. [Frontend Tutorial](#frontend-tutorial)
-4. [Run & Test Checklist](#run--test-checklist)
-5. [Common Bugs & Fixes](#common-bugs--fixes)
+4. [Run &amp; Test Checklist](#run--test-checklist)
+5. [Common Bugs &amp; Fixes](#common-bugs--fixes)
 6. [What to Build Next](#what-to-build-next)
 
 ---
@@ -79,17 +79,20 @@ london-zoo/
 ### Data Flow
 
 **Authentication (Express-Sessions):**
+
 - User registers → password hashed (bcrypt) → stored in DB
 - User logs in → email + password verified → `request.session.userId` set
 - Session persists via secure HTTP-only cookies
 - Frontend stores session in browser (automatic with credentials: 'include')
 
 **Protected Routes:**
+
 - Middleware checks `request.session.userId`
 - Role-based access: `staff` role → access staff endpoints only
 - React context checks auth status on app load
 
 **API Communication:**
+
 - Fetch with `credentials: 'include'` sends/receives cookies
 - All requests go through centralized API service
 - Error handling standardized: `{ error: "message" }`
@@ -101,6 +104,7 @@ london-zoo/
 ## Step 1: Initialize Backend Project
 
 ### Goal
+
 Set up Express server with session management, CORS, rate limiting, and database connections.
 
 ### Files to Create/Modify
@@ -125,6 +129,7 @@ npm install --save-dev nodemon
 ```
 
 **Why each package:**
+
 - `express` – web framework
 - `express-session` – session middleware (stores userId in cookies)
 - `cors` – cross-origin requests for React frontend
@@ -230,16 +235,19 @@ export async function testConnection() {
 **Detailed Explanation:**
 
 **Why Connection Pooling?**
+
 - **Performance:** Creating a new database connection for every query is expensive (handshake, authentication, etc.)
 - **Connection pools** maintain a set of reusable connections, drastically reducing overhead
 - When you request a connection, you get one from the pool; when done, it returns to the pool for reuse
 
 **Configuration Breakdown:**
+
 - `connectionLimit: 10` – Maximum 10 concurrent connections (adjust based on your server's capacity and expected traffic)
 - `waitForConnections: true` – If all 10 connections are in use, new requests wait in a queue rather than failing immediately
 - `queueLimit: 0` – Unlimited queue size (alternative: set a number to prevent memory overflow under extreme load)
 
 **The `query()` Function:**
+
 ```javascript
 const connection = await pool.getConnection();  // 1. Get connection from pool
 try {
@@ -251,12 +259,14 @@ try {
 ```
 
 **Key Best Practices:**
+
 1. **Always use `finally` block** to ensure connection is released even if error occurs
 2. **Use parameterized queries** (`execute(sql, values)`) to prevent SQL injection attacks
 3. **Array destructuring** `[results]` – mysql2 returns `[rows, fields]`, we only need rows
 4. **Error logging with chalk** – colored console output makes debugging easier in production logs
 
 **SQL Injection Prevention Example:**
+
 ```javascript
 // ❌ NEVER do this (vulnerable to SQL injection):
 query(`SELECT * FROM users WHERE email = '${email}'`);
@@ -266,6 +276,7 @@ query('SELECT * FROM users WHERE email = ?', [email]);
 ```
 
 **The `testConnection()` Function:**
+
 - Called once on server startup to verify database is accessible
 - Fails fast if connection is misconfigured (better than discovering issues when first query runs)
 - Returns boolean so server can gracefully exit if DB unavailable
@@ -275,6 +286,7 @@ query('SELECT * FROM users WHERE email = ?', [email]);
 ## Step 2: Database Schema & Initialization
 
 ### Goal
+
 Define the MySQL schema (users, attractions, queue status, notifications, etc.) and initialize the database.
 
 ### Files to Create
@@ -289,7 +301,6 @@ server-side/src/database/
 
 This SQL script creates all tables for the London Zoo system:
 
-```sql
 CREATE DATABASE IF NOT EXISTS london_zoo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE london_zoo;
 
@@ -414,9 +425,9 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO users (email, password_hash, role)
 SELECT 'staff@londonsoo.co.uk', '$2b$10$YqZfR.2QYyA7y6tLHHQ6ZuC6vwHQXxGb1XKH6gN6x5nNDHQGQXKWC', 'staff'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'staff@londonsoo.co.uk');
-```
 
 **Schema Highlights:**
+
 - `users.role` – ENUM for `visitor` or `staff` (for role-based access control)
 - `user_preferences.notifications_enabled` – opt-in alerts (privacy)
 - `attractions` – store lat/lon for distance calculations
@@ -426,85 +437,105 @@ WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'staff@londonsoo.co.uk');
 **Detailed Schema Design Decisions:**
 
 **1. Users Table Architecture:**
+
 ```sql
 role ENUM('visitor', 'staff') DEFAULT 'visitor'
 ```
+
 - **Why ENUM?** Enforces only valid roles at database level (safer than VARCHAR which allows any string)
 - **Default 'visitor'** ensures new users aren't accidentally granted staff privileges
 - **Security principle:** Least privilege by default
 
 **2. Password Storage:**
+
 ```sql
 password_hash VARCHAR(255) NOT NULL
 ```
+
 - **NEVER store plain-text passwords** – This stores bcrypt hashes (one-way encryption)
 - **VARCHAR(255)** accommodates bcrypt hash format (`$2b$10$...` = ~60 chars) with room for algorithm upgrades
 - **Best practice:** Even database administrators cannot see actual passwords
 
 **3. Reset Token Security:**
+
 ```sql
 reset_token CHAR(64) DEFAULT NULL,
 reset_expires DATETIME DEFAULT NULL
 ```
+
 - **Password reset flow:** Generate random 64-char token → email to user → expires after 1 hour
 - **CHAR(64)** fixed length for cryptographically secure tokens
 - **Indexed for performance** (lookups happen frequently during reset flow)
 
 **4. Preferences Table Relationship:**
+
 ```sql
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ```
+
 - **CASCADE deletion:** When user account deleted, preferences automatically deleted (prevents orphaned data)
 - **Alternative:** `ON DELETE SET NULL` keeps data but removes link (useful for analytics)
 - **Unique constraint on user_id** – each user has exactly one preferences record
 
 **5. Attractions Geolocation:**
+
 ```sql
 latitude DECIMAL(10, 8) NOT NULL,
 longitude DECIMAL(11, 8) NOT NULL
 ```
+
 - **DECIMAL vs FLOAT:** DECIMAL stores exact values (critical for coordinates)
 - **Precision:** `(10, 8)` = up to 8 decimal places (accurate to ~1mm)
 - **Why?** Used for Haversine distance calculations in navigation feature
 
 **6. Queue Status Optimization:**
+
 ```sql
 UNIQUE KEY unique_attraction_queue(attraction_id)
 ```
+
 - **Ensures only one queue record per attraction** (latest status)
 - **Update pattern:** Use `INSERT ... ON DUPLICATE KEY UPDATE` to upsert
 - **Performance:** Index on last_updated allows fast "recent updates" queries
 
 **7. Staff Metrics Composite Key:**
+
 ```sql
 UNIQUE KEY unique_attraction_date(attraction_id, metric_date)
 ```
+
 - **Prevents duplicate entries** for same attraction on same day
 - **Supports efficient queries** like "Get all metrics for Penguin Pool in January"
 - **Data integrity:** Business rule enforced at database level
 
 **8. Timestamp Best Practices:**
+
 ```sql
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ```
+
 - **Automatic audit trail** – Know when records created/modified without application code
 - **ON UPDATE CURRENT_TIMESTAMP** automatically updates timestamp on any row modification
 - **Debugging aid:** Essential for tracking down when data changed
 
 **9. Indexing Strategy:**
+
 ```sql
 INDEX idx_user_read(user_id, is_read)  -- Composite index
 ```
+
 - **Composite index on (user_id, is_read)** speeds up query: "Get all unread notifications for user X"
 - **Rule of thumb:** Index foreign keys and WHERE clause columns
 - **Trade-off:** Indexes speed up reads but slow down writes (acceptable here since reads >> writes)
 
 **10. Sample Data Insertion Pattern:**
+
 ```sql
 SELECT 'African Savanna', 'Description...', 'Mammals', 51.5350, -0.1507, 200, 45
 WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'African Savanna')
 ```
+
 - **Idempotent inserts:** Running schema.sql multiple times won't create duplicates
 - **Best for development:** Fresh database setup doesn't fail on "duplicate entry" errors
 - **Production alternative:** Use migration tools (Knex, Sequelize) with version tracking
@@ -543,6 +574,7 @@ export async function initializeDatabase() {
 ```
 
 **Explanation:**
+
 - Reads `schema.sql` file
 - Splits into individual statements
 - Executes each statement in order
@@ -553,14 +585,17 @@ export async function initializeDatabase() {
 **Detailed Code Walkthrough:**
 
 **File Reading with ES Modules:**
+
 ```javascript
 const schemaPath = path.join(process.cwd(), 'src', 'database', 'schema.sql');
 ```
+
 - `process.cwd()` returns current working directory (where you ran `npm run dev`)
 - **Why not `__dirname`?** We're using ES modules (`"type": "module"` in package.json), which don't have `__dirname`
 - `path.join()` creates OS-agnostic paths (works on Windows and Unix)
 
 **SQL Statement Parsing:**
+
 ```javascript
 const statements = schemaSQL
     .split(';')  // Split on semicolons (standard SQL delimiter)
@@ -569,22 +604,26 @@ const statements = schemaSQL
 ```
 
 **Why This Parsing Approach?**
+
 - **Simple and effective** for basic schema files
 - **Limitations:** Doesn't handle semicolons inside strings or stored procedures
 - **Production alternative:** Use migration libraries that parse SQL properly
 
 **Error Handling Philosophy:**
+
 ```javascript
 catch (error) {
     console.error(chalk.red(`✗ Database initialization failed: ${error.message}`));
     throw error;  // Re-throw to stop server startup
 }
 ```
+
 - **Fail-fast principle:** If database can't initialize, don't start the server
 - **Prevents silent failures** where app runs but database is broken
 - **Better user experience:** Error shown immediately rather than first query failing later
 
 **When initializeDatabase() Runs:**
+
 - Called once in `server.js` before starting HTTP listener
 - **Idempotent:** Safe to run multiple times (thanks to `IF NOT EXISTS` and `WHERE NOT EXISTS` in SQL)
 - **Development workflow:** Drop database → restart server → schema recreated automatically
@@ -609,6 +648,7 @@ export async function down(knex) {
 ```
 
 **Benefits of migrations:**
+
 - **Version control:** Each change is a numbered migration file
 - **Rollback capability:** Can undo changes with `down()` functions
 - **Team collaboration:** No conflicts when multiple developers modify schema
@@ -619,6 +659,7 @@ export async function down(knex) {
 ## Step 3: Main Server Setup & Middleware
 
 ### Goal
+
 Configure Express, session management, CORS, rate limiting, and error handling.
 
 ### Files to Create
@@ -772,6 +813,7 @@ startServer();
 ```
 
 **Key Points:**
+
 - `credentials: true` on CORS – allows cookies to be sent from frontend
 - Session `maxAge` – 24 hours before session expires
 - Rate limiters on auth routes – prevent brute-force attacks
@@ -781,6 +823,7 @@ startServer();
 **Deep Dive into Server Architecture:**
 
 **1. Middleware Order Matters:**
+
 ```javascript
 app.use(cors({ ... }));           // 1. Must be first - handles preflight requests
 app.use(express.json());          // 2. Parse request bodies before routes
@@ -790,12 +833,14 @@ app.use('/api/auth', authRoutes); // 5. Finally, route handlers
 ```
 
 **Why this order?**
+
 - **CORS first:** Browser sends preflight OPTIONS requests before actual request; CORS must respond
 - **Body parsers before routes:** Routes need access to `request.body`
 - **Session before routes:** Routes check `request.session.userId` for authentication
 - **If you get order wrong:** Requests fail with cryptic errors like "Cannot read property 'userId' of undefined"
 
 **2. Session Configuration Explained:**
+
 ```javascript
 app.use(session({
     secret: process.env.SESSION_SECRET || 'change_this_in_production',
@@ -811,17 +856,20 @@ app.use(session({
 ```
 
 **Each setting's purpose:**
+
 - **`secret`:** Used to sign session cookie (prevents tampering). **Critical:** Use long, random string in production
 - **`resave: false`:** Don't save session if unmodified (reduces database/store writes)
 - **`saveUninitialized: false`:** Don't create session until something stored (GDPR compliance - no tracking before consent)
 
 **Cookie security flags:**
+
 - **`httpOnly: true`:** JavaScript can't access cookie (prevents XSS attacks from stealing session)
 - **`secure: true`:** Only send cookie over HTTPS (production only; localhost uses HTTP)
 - **`sameSite: 'lax'`:** Prevents CSRF attacks (cookie not sent on cross-site POST requests)
 - **`maxAge`:** Cookie expires after 24 hours (forces re-login, limits hijacking window)
 
 **3. Rate Limiting Strategy:**
+
 ```javascript
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,  // 15-minute window
@@ -834,11 +882,13 @@ app.use('/api/auth/register', authLimiter);
 ```
 
 **Why rate limiting?**
+
 - **Prevents brute-force attacks:** Attacker can't try thousands of passwords
 - **10 attempts in 15 minutes:** Reasonable for legitimate users (forgetting password), strict enough to slow attackers
 - **Different limits per route:** Auth routes strict (10/15min), API routes generous (30/1min)
 
 **Attack scenario without rate limiting:**
+
 ```
 Attacker script:
 for password in common_passwords:
@@ -847,6 +897,7 @@ for password in common_passwords:
 ```
 
 **4. CORS Configuration Deep Dive:**
+
 ```javascript
 app.use(cors({
     origin: FRONTEND_URL,           // Only allow requests from our React app
@@ -857,16 +908,18 @@ app.use(cors({
 ```
 
 **Why `credentials: true` is critical:**
+
 - **Browser behavior:** By default, browsers don't send cookies on cross-origin requests
 - **Our setup:** React (port 3000) → Express (port 5000) = cross-origin
 - **Without this:** `request.session` will always be undefined (new session every request)
 - **Frontend must also set:** `fetch(url, { credentials: 'include' })` (already in our api.js)
 
 **5. Global Error Handler Pattern:**
+
 ```javascript
 app.use((err, request, response, next) => {
     console.error(chalk.red(`Error: ${err.message}`));
-    
+  
     response.status(err.status || 500).json({
         error: err.message || 'Internal Server Error',
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
@@ -875,12 +928,14 @@ app.use((err, request, response, next) => {
 ```
 
 **How it works:**
+
 - **Must have 4 parameters:** `(err, req, res, next)` – Express detects error handlers by parameter count
 - **Catch-all:** Any unhandled error in routes/middleware lands here
 - **Consistent format:** All errors return `{ error: "message" }` JSON
 - **Development vs Production:** Show stack traces locally, hide in production (security)
 
 **Usage in routes:**
+
 ```javascript
 router.get('/example', async (req, res, next) => {
     try {
@@ -893,6 +948,7 @@ router.get('/example', async (req, res, next) => {
 ```
 
 **6. Startup Sequence Logic:**
+
 ```javascript
 async function startServer() {
     try {
@@ -912,12 +968,14 @@ async function startServer() {
 ```
 
 **Why this sequence?**
+
 1. **Test DB connection** → Fail immediately if database unreachable
 2. **Initialize schema** → Ensure tables exist before accepting requests
 3. **Start HTTP listener** → Only after everything ready
 4. **`process.exit(1)`** → Signals to Docker/PM2/systemd that startup failed (triggers restart policies)
 
 **Production Enhancement:**
+
 ```javascript
 // Add graceful shutdown
 process.on('SIGTERM', async () => {
@@ -979,6 +1037,7 @@ export function optionalAuth(request, response, next) {
 ```
 
 **Usage:**
+
 - `requireAuth` – on endpoints that require login (e.g., get user profile)
 - `requireStaff` – on staff-only endpoints (chain after `requireAuth`)
 - `optionalAuth` – on endpoints where data varies by user but login is optional
@@ -986,6 +1045,7 @@ export function optionalAuth(request, response, next) {
 **Detailed Middleware Patterns Explained:**
 
 **1. The `requireAuth` Middleware:**
+
 ```javascript
 export function requireAuth(request, response, next) {
     if (!request.session || !request.session.userId) {
@@ -1001,11 +1061,13 @@ export function requireAuth(request, response, next) {
 ```
 
 **How Express middleware works:**
+
 - **`next()`:** Passes control to next middleware in chain
 - **No `next()` call:** Chain stops (we sent response, don't continue)
 - **`return` before `response.json()`:** Prevents "headers already sent" error
 
 **Flow diagram:**
+
 ```
 Request → requireAuth → next() → Route Handler → Response
                 ↓ (if no session)
@@ -1013,15 +1075,18 @@ Request → requireAuth → next() → Route Handler → Response
 ```
 
 **Setting request properties:**
+
 ```javascript
 request.userId = request.session.userId;
 request.userRole = request.session.role;
 ```
+
 - **Convenience pattern:** Downstream handlers use `request.userId` instead of `request.session.userId`
 - **Shorter code:** `const userId = request.userId;` vs `const userId = request.session.userId;`
 - **Type safety:** Later can add TypeScript types for `request.userId`
 
 **2. The `requireStaff` Middleware (Chaining Pattern):**
+
 ```javascript
 export function requireStaff(request, response, next) {
     if (!request.userRole || request.userRole !== 'staff') {
@@ -1035,6 +1100,7 @@ export function requireStaff(request, response, next) {
 ```
 
 **Usage in routes:**
+
 ```javascript
 router.get('/staff-metrics', requireAuth, requireStaff, async (req, res) => {
     // This handler only runs if BOTH middleware pass
@@ -1044,6 +1110,7 @@ router.get('/staff-metrics', requireAuth, requireStaff, async (req, res) => {
 ```
 
 **Why chain instead of combining?**
+
 ```javascript
 // ❌ Don't do this (less reusable):
 function requireStaffAuth(req, res, next) {
@@ -1058,11 +1125,13 @@ router.get('/other', requireAuth, handler);  // Reuse requireAuth alone
 ```
 
 **HTTP Status Code Best Practices:**
+
 - **401 Unauthorized:** User not authenticated (needs to log in)
 - **403 Forbidden:** User authenticated but lacks permission (role check failed)
 - **Why it matters:** Clients can handle differently (401 → redirect to login, 403 → show "access denied" message)
 
 **3. The `optionalAuth` Middleware:**
+
 ```javascript
 export function optionalAuth(request, response, next) {
     if (request.session && request.session.userId) {
@@ -1074,25 +1143,28 @@ export function optionalAuth(request, response, next) {
 ```
 
 **Use cases:**
+
 - **Public endpoints with personalization:** "Get all attractions" shows favorite indicators if logged in
 - **No requirement to log in:** Anonymous users can still access
 - **Conditional logic in handler:**
+
 ```javascript
 router.get('/attractions', optionalAuth, async (req, res) => {
     const attractions = await query('SELECT * FROM attractions');
-    
+  
     if (req.userId) {
         // Logged in: Add user's favorite status
         const favorites = await query('SELECT attraction_id FROM favorites WHERE user_id = ?', [req.userId]);
         // ... merge data
     }
-    
+  
     // Not logged in: Just return basic attraction data
     res.json(attractions);
 });
 ```
 
 **4. Middleware Error Handling Pattern:**
+
 ```javascript
 export function requireAuth(request, response, next) {
     if (!request.session || !request.session.userId) {
@@ -1109,11 +1181,13 @@ export function requireAuth(request, response, next) {
 ```
 
 **Why log unauthorized attempts?**
+
 - **Security monitoring:** Repeated attempts to access protected routes may indicate attack
 - **Debugging:** See which routes users try to access before logging in (UX improvement opportunity)
 - **Audit trail:** Compliance requirements (GDPR, HIPAA) often require access logging
 
 **5. Advanced Pattern: Role Hierarchy (Future Enhancement):**
+
 ```javascript
 // For more complex apps with multiple roles (admin, staff, manager, etc.)
 export function requireRole(...allowedRoles) {
@@ -1134,6 +1208,7 @@ router.get('/metrics', requireAuth, requireRole('staff', 'admin'), handler);
 ```
 
 **Testing Middleware:**
+
 ```javascript
 // Example test with Jest/Supertest
 describe('requireAuth middleware', () => {
@@ -1141,10 +1216,10 @@ describe('requireAuth middleware', () => {
         const res = await request(app)
             .get('/api/profile')
             .expect(401);
-        
+      
         expect(res.body.error).toBe('Authentication required');
     });
-    
+  
     it('should call next() if session exists', async () => {
         const res = await request(app)
             .get('/api/profile')
@@ -1159,6 +1234,7 @@ describe('requireAuth middleware', () => {
 ## Step 4: Authentication Routes (Login, Register, Logout)
 
 ### Goal
+
 Implement user registration, login, logout with password hashing and session management.
 
 ### Files to Create
@@ -1354,6 +1430,7 @@ export default router;
 ```
 
 **Key Points:**
+
 - Password regex enforces strong passwords (security)
 - `bcrypt.hash(password, 10)` – hash with 10 salt rounds (slow, intentional)
 - `request.session.userId` – persists across requests (session middleware handles cookies)
@@ -1362,19 +1439,22 @@ export default router;
 **In-Depth Authentication Flow Explanation:**
 
 **1. Password Validation Regex Breakdown:**
+
 ```javascript
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 ```
 
 **Regex anatomy:**
+
 - `^` and `$` – Match entire string (prevents bypass with extra chars)
 - `(?=.*[a-z])` – Lookahead: at least one lowercase letter
-- `(?=.*[A-Z])` – Lookahead: at least one uppercase letter  
+- `(?=.*[A-Z])` – Lookahead: at least one uppercase letter
 - `(?=.*\d)` – Lookahead: at least one digit (0-9)
 - `(?=.*[^A-Za-z0-9])` – Lookahead: at least one special character
 - `.{8,}` – Minimum 8 characters total
 
 **Why strict password requirements?**
+
 - **Prevents common passwords:** "password123" fails (no uppercase/special char)
 - **Increases entropy:** More character variety = harder to crack
 - **Industry standard:** Matches OWASP password guidelines
@@ -1383,23 +1463,27 @@ const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 **Example invalid passwords:** `password` (too simple), `PASSWORD123` (no lowercase), `MyPassword1` (no special char)
 
 **2. Bcrypt Hashing Deep Dive:**
+
 ```javascript
 const password_hash = await bcrypt.hash(password, 10);
 ```
 
 **What are "salt rounds"?**
+
 - **Salt:** Random data added to password before hashing (prevents rainbow table attacks)
 - **Rounds (10):** Number of times bcrypt algorithm iterates (2^10 = 1024 iterations)
 - **Each iteration doubles the time:** Makes brute-force exponentially slower
 
 **Why 10 rounds?**
-- **Balance security vs performance:** 
+
+- **Balance security vs performance:**
   - 10 rounds ≈ 100ms per hash (acceptable for login)
   - 12 rounds ≈ 400ms (more secure, slower)
   - 8 rounds ≈ 25ms (faster, less secure)
 - **Future-proof:** As computers get faster, increase rounds (bcrypt designed for this)
 
 **Hash output example:**
+
 ```
 Plain password: "MyP@ssw0rd"
 Bcrypt hash: "$2b$10$N9qo8uLOickgx2ZMRZoMye1234567890abcdefghijklmnopqrstuv"
@@ -1411,13 +1495,16 @@ Bcrypt hash: "$2b$10$N9qo8uLOickgx2ZMRZoMye1234567890abcdefghijklmnopqrstuv"
 ```
 
 **Key property: Same password ≠ same hash**
+
 ```javascript
 bcrypt.hash("password123", 10) → "$2b$10$abc...xyz"
 bcrypt.hash("password123", 10) → "$2b$10$def...uvw"  // Different!
 ```
+
 This is why we use `bcrypt.compare()` instead of direct comparison.
 
 **3. Registration Flow with Duplicate Check:**
+
 ```javascript
 // Check if email already exists
 const existingUser = await query(
@@ -1434,11 +1521,13 @@ if (existingUser.length > 0) {
 ```
 
 **Why check before inserting?**
+
 - **Better error message:** "Email already registered" vs "Duplicate key error: email_UNIQUE"
 - **Security consideration:** Tells attacker email is registered (unavoidable with unique constraint)
 - **HTTP 409 Conflict:** Correct status code for "resource already exists"
 
 **Alternative approach (let database handle):**
+
 ```javascript
 try {
     await query('INSERT INTO users ...', [email, hash]);
@@ -1451,6 +1540,7 @@ try {
 ```
 
 **4. Login Flow with Password Comparison:**
+
 ```javascript
 const user = await query(
     'SELECT id, email, password_hash, role FROM users WHERE email = ?',
@@ -1475,11 +1565,13 @@ if (!isValidPassword) {
 ```
 
 **Security best practice: Vague error messages**
+
 - **Don't say:** "Email not found" or "Password incorrect"
 - **Do say:** "Email or password incorrect"
 - **Why?** Prevents attackers from enumerating registered emails
 
 **Attack scenario:**
+
 ```
 Attacker: Try login with random-email@test.com / password123
 Server: "Email not found"
@@ -1491,6 +1583,7 @@ Attacker: Now I know John has an account! (Can phish him or brute-force)
 ```
 
 **Timing attack consideration:**
+
 ```javascript
 // ❌ Bad: Fast response if email doesn't exist, slow if password check needed
 if (!user) return res.status(401);  // Instant
@@ -1503,6 +1596,7 @@ if (!user || !isValid) return res.status(401);
 ```
 
 **5. Session Creation:**
+
 ```javascript
 request.session.userId = user[0].id;
 request.session.role = user[0].role;
@@ -1518,6 +1612,7 @@ return response.json({
 ```
 
 **What happens behind the scenes:**
+
 1. **Express-session middleware** sees session data changed
 2. **Generates session ID** (random string, e.g., `s:J8fk2nD...`)
 3. **Stores session data** in memory (or Redis/database in production)
@@ -1525,6 +1620,7 @@ return response.json({
 5. **Browser automatically sends cookie** on all future requests
 
 **Session storage options:**
+
 ```javascript
 // Development (default): MemoryStore (in-process, lost on restart)
 app.use(session({ /* no store specified */ }));
@@ -1541,6 +1637,7 @@ app.use(session({
 ```
 
 **6. The /status Endpoint (Critical for React Apps):**
+
 ```javascript
 router.get('/status', (request, response) => {
     if (request.session && request.session.userId) {
@@ -1557,9 +1654,11 @@ router.get('/status', (request, response) => {
 ```
 
 **Why this endpoint exists:**
+
 - **Page refresh problem:** User logged in → refreshes page → React state lost
 - **Frontend needs to know:** "Is this user still authenticated?"
 - **Called on app mount:**
+
 ```javascript
 useEffect(() => {
     async function checkAuth() {
@@ -1573,6 +1672,7 @@ useEffect(() => {
 ```
 
 **Security note:**
+
 - **No password sent:** Status check uses existing session cookie
 - **Stateless from frontend perspective:** React doesn't store auth tokens, relies on HTTP-only cookie
 - **XSS protection:** Even if attacker injects JS, can't steal session (HttpOnly flag)
@@ -1582,6 +1682,7 @@ useEffect(() => {
 ## Step 5: Attractions Routes
 
 ### Goal
+
 Create endpoints to fetch attractions list and individual attraction details with queue data.
 
 ### Files to Create
@@ -1693,6 +1794,7 @@ export default router;
 ```
 
 **Explanation:**
+
 - `LEFT JOIN queue_status` – includes queue data even if no queue record exists
 - `WHERE a.is_open = TRUE` – only show open attractions
 - `optionalAuth` – endpoint works for logged-in and logged-out users
@@ -1701,6 +1803,7 @@ export default router;
 **SQL Query Patterns Explained:**
 
 **1. The LEFT JOIN Pattern:**
+
 ```sql
 SELECT 
     a.id, a.name, a.description, a.category,
@@ -1715,11 +1818,13 @@ ORDER BY a.name;
 ```
 
 **Why LEFT JOIN instead of INNER JOIN?**
+
 - **LEFT JOIN:** Returns ALL attractions, even if no queue data exists
 - **INNER JOIN:** Only returns attractions WITH queue data
 - **Scenario:** New attraction added but no queue record yet → should still appear in list
 
 **Visual example:**
+
 ```
 attractions table:
 | id | name           | is_open |
@@ -1746,40 +1851,46 @@ LEFT JOIN result (all open attractions):
 ```
 
 **2. COALESCE Function:**
+
 ```sql
 COALESCE(q.queue_length, 0) AS queue_length
 ```
 
 **What it does:**
+
 - Returns first non-NULL value
 - `COALESCE(NULL, 0)` → `0`
 - `COALESCE(15, 0)` → `15`
 
 **Why use it?**
+
 - **Consistent data type:** Frontend always gets number, never `null`
 - **Prevents errors:** `null + 5` = error, `0 + 5` = `5`
 - **Better UX:** "0 people waiting" vs "undefined people waiting"
 
 **3. Filtering Closed Attractions:**
+
 ```sql
 WHERE a.is_open = TRUE
 ```
 
 **Business logic in database:**
+
 - **Could filter in JavaScript:** Fetch all, then `attractions.filter(a => a.is_open)`
-- **Better in SQL:** 
+- **Better in SQL:**
   - Less data transferred (network efficiency)
   - Leverages database index on `is_open` column
   - Centralizes business rule (all queries get same logic)
 
 **4. Optional Authentication Pattern:**
+
 ```javascript
 router.get('/', optionalAuth, async (request, response) => {
     // request.userId might be undefined (not logged in)
     // or a number (logged in)
-    
+  
     const attractions = await query(`...`);
-    
+  
     // Future enhancement: If logged in, add favorite status
     if (request.userId) {
         // Fetch user's favorite attractions
@@ -1788,45 +1899,47 @@ router.get('/', optionalAuth, async (request, response) => {
             [request.userId]
         );
         const favoriteIds = new Set(favorites.map(f => f.attraction_id));
-        
+      
         // Add isFavorite flag to each attraction
         attractions.forEach(a => {
             a.isFavorite = favoriteIds.has(a.id);
         });
     }
-    
+  
     response.json(attractions);
 });
 ```
 
 **Why optionalAuth here?**
+
 - **Public data:** Anyone should see attractions (even not logged in)
 - **Personalization:** Logged-in users get extra features (favorites)
 - **Progressive enhancement:** Basic functionality for all, enhanced for authenticated
 
 **5. Route Parameter Handling:**
+
 ```javascript
 router.get('/:id', optionalAuth, async (request, response) => {
     const { id } = request.params;  // Extract from URL
-    
+  
     // Validate ID is a number
     if (!id || isNaN(id)) {
         return response.status(400).json({
             error: 'Invalid attraction ID'
         });
     }
-    
+  
     const attraction = await query(`
         SELECT ...
         WHERE a.id = ? AND a.is_open = TRUE
     `, [id]);
-    
+  
     if (attraction.length === 0) {
         return response.status(404).json({
             error: 'Attraction not found'
         });
     }
-    
+  
     response.json(attraction[0]);  // Return single object, not array
 });
 ```
@@ -1834,27 +1947,32 @@ router.get('/:id', optionalAuth, async (request, response) => {
 **Common mistakes to avoid:**
 
 **❌ Don't trust user input:**
+
 ```javascript
 // Vulnerable to SQL injection!
 const attraction = await query(`SELECT * FROM attractions WHERE id = ${id}`);
 ```
 
 **✅ Always use parameterized queries:**
+
 ```javascript
 const attraction = await query('SELECT * FROM attractions WHERE id = ?', [id]);
 ```
 
 **❌ Don't return arrays when expecting one result:**
+
 ```javascript
 response.json(attraction);  // Returns [{ id: 1, ... }] - client needs [0]
 ```
 
 **✅ Return single object:**
+
 ```javascript
 response.json(attraction[0]);  // Returns { id: 1, ... } - cleaner API
 ```
 
 **6. Consistent Error Responses:**
+
 ```javascript
 // 400 Bad Request - Client error (invalid input)
 return response.status(400).json({
@@ -1873,6 +1991,7 @@ throw new Error('Database connection failed');
 ```
 
 **HTTP status code guide:**
+
 - **200 OK:** Successful GET/PATCH
 - **201 Created:** Successful POST (new resource)
 - **400 Bad Request:** Invalid input (validation failed)
@@ -1883,6 +2002,7 @@ throw new Error('Database connection failed');
 - **500 Internal Server Error:** Unexpected server error
 
 **Frontend error handling:**
+
 ```javascript
 try {
     const attraction = await api.getAttraction(id);
@@ -1903,6 +2023,7 @@ try {
 ## Step 6: Queue Status Routes
 
 ### Goal
+
 Provide real-time queue information. In production, this would be updated by staff; here we'll provide GET endpoints and a simple admin update endpoint.
 
 ### Files to Create
@@ -2052,6 +2173,7 @@ export default router;
 ```
 
 **Key Points:**
+
 - `GET /api/queue/:attractionId` – public endpoint (optionalAuth)
 - `PATCH /api/queue/:attractionId` – staff-only update
 - Input validation ensures queue_length and wait_minutes are non-negative
@@ -2061,6 +2183,7 @@ export default router;
 ## Step 7: Notifications Routes
 
 ### Goal
+
 Allow users to subscribe/unsubscribe from alerts and retrieve their notifications.
 
 ### Files to Create
@@ -2234,6 +2357,7 @@ export default router;
 ```
 
 **Key Points:**
+
 - `POST /subscribe` – create preference record if doesn't exist
 - `GET /notifications` – only returns logged-in user's notifications
 - `PATCH /:id/read` – verify user owns notification before updating
@@ -2244,6 +2368,7 @@ export default router;
 ## Step 8: Navigation (ETA) Routes
 
 ### Goal
+
 Calculate estimated distance and time from user's current location to a chosen attraction.
 
 ### Files to Create
@@ -2358,6 +2483,7 @@ export default router;
 ```
 
 **Key Points:**
+
 - Haversine formula calculates great-circle distance between two points on Earth
 - Assumes average walking speed of 1.4 m/s (~5 km/h)
 - Returns both meters and kilometers for flexibility
@@ -2368,6 +2494,7 @@ export default router;
 **Geospatial Mathematics Explained:**
 
 **1. Haversine Formula Deep Dive:**
+
 ```javascript
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371000; // Earth's radius in meters
@@ -2384,13 +2511,15 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 ```
 
 **Why Haversine?**
+
 - **Earth is a sphere:** Pythagorean theorem (√(x² + y²)) doesn't work on curved surfaces
 - **Great-circle distance:** Shortest path between two points on a sphere
-- **Alternative formulas:** 
+- **Alternative formulas:**
   - Vincenty (more accurate, much more complex)
   - Simple approximation (only works for small distances)
 
 **Formula breakdown:**
+
 1. **Convert degrees to radians:** `lat * π / 180` (trigonometry functions use radians)
 2. **Calculate differences:** `dLat` and `dLon`
 3. **Haversine of angle:** `a = sin²(dLat/2) + cos(lat1) * cos(lat2) * sin²(dLon/2)`
@@ -2398,12 +2527,14 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 5. **Linear distance:** `distance = radius * c`
 
 **Accuracy:**
+
 - **Earth radius:** 6,371 km (mean radius, varies by ~21km pole-to-equator)
 - **Error margin:** ±0.5% for distances < 500km
 - **Good enough for:** Zoo navigation (< 2km distances)
 - **Not good enough for:** Aviation, GPS navigation (use Vincenty)
 
 **Example calculation:**
+
 ```
 Point A (London Zoo entrance): 51.5355°N, 0.1512°W
 Point B (Penguin Pool): 51.5350°N, 0.1507°W
@@ -2422,6 +2553,7 @@ distance ≈ 787 meters
 ```
 
 **2. Walking Speed Calculation:**
+
 ```javascript
 const walking_speed_mps = 1.4; // meters per second
 const estimated_time_minutes = Math.max(
@@ -2431,6 +2563,7 @@ const estimated_time_minutes = Math.max(
 ```
 
 **Why 1.4 m/s?**
+
 - **Average human walking speed:** 1.4 m/s = 5 km/h = 3.1 mph
 - **Accounts for:**
   - Casual walking (not rushing)
@@ -2439,6 +2572,7 @@ const estimated_time_minutes = Math.max(
 - **Could enhance:** Adjust based on user preference (slow/normal/fast)
 
 **Formula:**
+
 ```
 Distance: 787 meters
 Time = 787 / (1.4 m/s * 60 s/min)
@@ -2448,14 +2582,16 @@ Rounded = 9 minutes
 ```
 
 **Why `Math.max(1, ...)`?**
+
 - **Prevents "0 minutes":** Even if 10 meters away, show "1 minute"
 - **User expectation:** "0 minutes" feels broken, "1 minute" is acceptable
 
 **3. API Endpoint Design:**
+
 ```javascript
 router.post('/eta', optionalAuth, async (request, response) => {
     const { user_latitude, user_longitude, attraction_id } = request.body;
-    
+  
     // Input validation
     if (!user_latitude || !user_longitude || !attraction_id) {
         return response.status(400).json({
@@ -2463,7 +2599,7 @@ router.post('/eta', optionalAuth, async (request, response) => {
             message: 'user_latitude, user_longitude, and attraction_id are required'
         });
     }
-    
+  
     // Validate latitude range (-90 to 90)
     if (user_latitude < -90 || user_latitude > 90) {
         return response.status(400).json({
@@ -2471,7 +2607,7 @@ router.post('/eta', optionalAuth, async (request, response) => {
             message: 'Latitude must be between -90 and 90'
         });
     }
-    
+  
     // Validate longitude range (-180 to 180)
     if (user_longitude < -180 || user_longitude > 180) {
         return response.status(400).json({
@@ -2479,17 +2615,19 @@ router.post('/eta', optionalAuth, async (request, response) => {
             message: 'Longitude must be between -180 and 180'
         });
     }
-    
+  
     // ... rest of endpoint
 });
 ```
 
 **Why validate coordinates?**
+
 - **Prevents calculation errors:** Invalid values cause `NaN` results
 - **Security:** Malicious input (e.g., strings) could crash server
 - **Clear error messages:** "Invalid latitude" vs "NaN result"
 
 **4. Frontend Integration Pattern:**
+
 ```javascript
 // React component using Geolocation API
 async function getDirections(attractionId) {
@@ -2497,18 +2635,18 @@ async function getDirections(attractionId) {
         setError('Geolocation not supported by your browser');
         return;
     }
-    
+  
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             const { latitude, longitude } = position.coords;
-            
+          
             try {
                 const eta = await api.calculateETA(
                     latitude,
                     longitude,
                     attractionId
                 );
-                
+              
                 setETA({
                     distance: eta.distance_km,
                     time: eta.estimated_time_minutes,
@@ -2537,8 +2675,9 @@ async function getDirections(attractionId) {
 ```
 
 **Geolocation API considerations:**
+
 - **User permission required:** Browser shows "Allow location access?" prompt
-- **Accuracy varies:** 
+- **Accuracy varies:**
   - GPS: 5-10 meters
   - WiFi: 20-50 meters
   - Cell tower: 100-1000 meters
@@ -2547,6 +2686,7 @@ async function getDirections(attractionId) {
 **5. Production Enhancements:**
 
 **Use routing API (Google Maps, Mapbox):**
+
 ```javascript
 // Instead of straight-line distance, get walking route
 const response = await fetch(
@@ -2571,12 +2711,14 @@ return {
 ```
 
 **Benefits of routing API:**
+
 - **Follows paths:** Accounts for walkways, not straight line
 - **Turn-by-turn:** "Turn left at Tiger Exhibit"
 - **Obstacles:** Avoids walls, water features
 - **Real-time:** Considers temporary path closures
 
 **Cost consideration:**
+
 - Google Maps: $5 per 1000 requests (first $200/month free)
 - Mapbox: $0.75 per 1000 requests
 - For zoo with 10,000 daily route requests: ~$3-5/day
@@ -2586,6 +2728,7 @@ return {
 ## Step 9: User Profile & Preferences Routes
 
 ### Goal
+
 Allow users to view and update their profile and notification preferences.
 
 ### Files to Create
@@ -2751,6 +2894,7 @@ export default router;
 ```
 
 **Key Points:**
+
 - `GET /profile` – returns user AND preferences together
 - `PATCH /preferences` – all fields optional; creates record if doesn't exist
 - `preferred_attractions` – stored as JSON string (can query with MySQL JSON functions if needed)
@@ -2760,6 +2904,7 @@ export default router;
 ## Step 10: Staff Metrics Routes (Dashboard Data)
 
 ### Goal
+
 Provide endpoints for staff to view performance metrics (ticket sales, uptime, visitor count) with filtering by date range and attraction.
 
 ### Files to Create
@@ -2961,6 +3106,7 @@ export default router;
 ```
 
 **Key Points:**
+
 - `GET /` – list all metrics with optional filters (date range, attraction)
 - `GET /summary` – aggregated totals for analysis
 - `POST /` – record/update daily metrics; uses `ON DUPLICATE KEY UPDATE` for upserting
@@ -2972,6 +3118,7 @@ export default router;
 ## Step 11: Create `utils/index.js` (Helper Functions)
 
 ### Goal
+
 Centralize utility functions for validation, error handling, etc.
 
 ```javascript
@@ -3007,17 +3154,20 @@ export function formatDate(date) {
 ## Step 12: Backend Testing & Verification
 
 ### Goal
+
 Verify all endpoints work before moving to frontend.
 
 ### Manual Test Checklist
 
 **Setup:**
+
 1. Ensure MySQL is running and `.env` is configured
 2. Run `npm install` in `server-side/`
 3. Run `npm run dev` (starts on `http://localhost:5000`)
 4. Open Postman or use `curl` / Thunder Client
 
 **Auth Tests:**
+
 ```bash
 # Register
 POST http://localhost:5000/api/auth/register
@@ -3032,17 +3182,20 @@ GET http://localhost:5000/api/auth/status
 ```
 
 **Attractions Tests:**
+
 ```bash
 GET http://localhost:5000/api/attractions
 GET http://localhost:5000/api/attractions/1
 ```
 
 **Queue Tests:**
+
 ```bash
 GET http://localhost:5000/api/queue/1
 ```
 
 **Navigation Tests:**
+
 ```bash
 POST http://localhost:5000/api/navigation/eta
 Body: {
@@ -3053,6 +3206,7 @@ Body: {
 ```
 
 **Staff Metrics Tests (must be logged in as staff):**
+
 ```bash
 GET http://localhost:5000/api/staff-metrics?from_date=2024-01-01&to_date=2024-12-31
 GET http://localhost:5000/api/staff-metrics/summary
@@ -3065,6 +3219,7 @@ GET http://localhost:5000/api/staff-metrics/summary
 ## Step 1: React Project Setup
 
 ### Goal
+
 Initialize React app with routing and API configuration.
 
 ### Files to Modify/Create
@@ -3097,6 +3252,7 @@ client-side/
 ### Step 1a: Already Done (Package.json + Dependencies)
 
 Your `package.json` already has:
+
 - `react`, `react-dom`, `react-router-dom`
 
 All set!
@@ -3272,6 +3428,7 @@ export default new ApiService();
 ```
 
 **Key Pattern:**
+
 - Centralized `request()` method handles all fetch calls
 - `credentials: 'include'` ensures cookies sent/received
 - All methods wrap this and build URLs/bodies
@@ -3281,6 +3438,7 @@ export default new ApiService();
 **Centralized API Architecture Explained:**
 
 **1. The Power of a Single Request Method:**
+
 ```javascript
 async request(endpoint, options = {}) {
     const config = {
@@ -3309,21 +3467,25 @@ async request(endpoint, options = {}) {
 ```
 
 **Why centralize?**
+
 - **DRY principle:** Write `credentials: 'include'` once, not 30 times
 - **Consistent error handling:** All failures handled same way
 - **Easy to enhance:** Add logging, retry logic, or auth refresh in one place
 - **Type safety:** Later add TypeScript types in one location
 
 **2. Credentials: 'include' - The Critical Setting:**
+
 ```javascript
 credentials: 'include'
 ```
 
 **What it does:**
+
 - Tells browser to send cookies with cross-origin requests
 - Without it: Session cookie not sent, every request appears anonymous
 
 **Cross-origin scenario:**
+
 ```
 Frontend: http://localhost:3000
 Backend:  http://localhost:5000
@@ -3334,6 +3496,7 @@ With credentials: 'include': Send cookies (opt-in to this behavior)
 ```
 
 **Must match backend CORS settings:**
+
 ```javascript
 // Backend (server.js)
 cors({
@@ -3343,10 +3506,12 @@ cors({
 ```
 
 **Security implication:**
+
 - **Only allow trusted origins:** `origin: FRONTEND_URL`, not `origin: '*'`
 - **CSRF protection:** `sameSite: 'lax'` cookie flag prevents cross-site attacks
 
 **3. Error Handling Pattern:**
+
 ```javascript
 if (!response.ok) {
     throw { ...data, status: response.status };
@@ -3354,6 +3519,7 @@ if (!response.ok) {
 ```
 
 **Why throw objects, not Errors?**
+
 ```javascript
 // ❌ Loses backend error details:
 throw new Error('Request failed');
@@ -3363,6 +3529,7 @@ throw { error: 'Invalid email', message: '...', status: 400 };
 ```
 
 **Frontend usage:**
+
 ```javascript
 try {
     await api.login(email, password);
@@ -3380,6 +3547,7 @@ try {
 **4. Method Patterns - Consistent API Design:**
 
 **GET request (no body):**
+
 ```javascript
 async getAttractions() {
     return this.request('/attractions');
@@ -3388,6 +3556,7 @@ async getAttractions() {
 ```
 
 **POST request (with body):**
+
 ```javascript
 async login(email, password) {
     return this.request('/auth/login', {
@@ -3404,6 +3573,7 @@ async login(email, password) {
 ```
 
 **PATCH request (partial update):**
+
 ```javascript
 async updatePreferences(preferences) {
     return this.request('/profile/preferences', {
@@ -3414,6 +3584,7 @@ async updatePreferences(preferences) {
 ```
 
 **DELETE request:**
+
 ```javascript
 async deleteNotification(id) {
     return this.request(`/notifications/${id}`, {
@@ -3423,6 +3594,7 @@ async deleteNotification(id) {
 ```
 
 **5. Query Parameter Helper (Enhancement):**
+
 ```javascript
 // Current approach (manual string building):
 async getStaffMetrics(from_date, to_date, attraction_id) {
@@ -3459,21 +3631,23 @@ async getStaffMetrics(from_date, to_date, attraction_id) {
 **6. Advanced Features to Add:**
 
 **Request/response logging:**
+
 ```javascript
 async request(endpoint, options = {}) {
     console.log(`→ ${options.method || 'GET'} ${endpoint}`, options.body);
-    
+  
     const response = await fetch(`${API_BASE}${endpoint}`, config);
     const data = await response.json();
-    
+  
     console.log(`← ${response.status} ${endpoint}`, data);
-    
+  
     if (!response.ok) throw { ...data, status: response.status };
     return data;
 }
 ```
 
 **Retry logic for network errors:**
+
 ```javascript
 async request(endpoint, options = {}, retries = 3) {
     for (let i = 0; i < retries; i++) {
@@ -3490,10 +3664,11 @@ async request(endpoint, options = {}, retries = 3) {
 ```
 
 **Token refresh (if using JWT instead of sessions):**
+
 ```javascript
 async request(endpoint, options = {}) {
     const response = await fetch(`${API_BASE}${endpoint}`, config);
-    
+  
     if (response.status === 401) {
         // Token expired, try to refresh
         const refreshed = await this.refreshToken();
@@ -3502,25 +3677,26 @@ async request(endpoint, options = {}) {
             return this.request(endpoint, options);
         }
     }
-    
+  
     // ... rest of method
 }
 ```
 
 **Request cancellation (for search debouncing):**
+
 ```javascript
 class ApiService {
     abortControllers = new Map();
-    
+  
     async request(endpoint, options = {}) {
         // Cancel previous request to same endpoint
         if (this.abortControllers.has(endpoint)) {
             this.abortControllers.get(endpoint).abort();
         }
-        
+      
         const controller = new AbortController();
         this.abortControllers.set(endpoint, controller);
-        
+      
         try {
             const response = await fetch(`${API_BASE}${endpoint}`, {
                 ...config,
@@ -3540,22 +3716,26 @@ await api.searchAttractions('pen');      // This one completes
 ```
 
 **7. Why Export a Singleton Instance:**
+
 ```javascript
 export default new ApiService();  // Singleton pattern
 ```
 
 **Benefits:**
+
 - **Shared state:** All components use same instance (shared abort controllers, caching, etc.)
 - **Simple imports:** `import api from './api.js'` → `api.login(...)`
 - **Easy to mock:** Test with `jest.mock('./api.js')`
 
 **Alternative (class export):**
+
 ```javascript
 export default ApiService;  // Export class
 // Usage: const api = new ApiService(); (create instance per component)
 ```
 
 **When to use which:**
+
 - **Singleton:** API services, database connections, logger
 - **Class export:** Components, utilities that need different configs
 
@@ -3634,6 +3814,7 @@ export function useAuth() {
 ```
 
 **Key Pattern:**
+
 - `checkAuth()` on mount – fetch session status from backend
 - `isLoading` – prevents premature redirects while checking auth
 - `login()`/`logout()` update local state AND backend session
@@ -3644,6 +3825,7 @@ export function useAuth() {
 **1. Why Context Instead of Props?**
 
 **Problem without Context (prop drilling):**
+
 ```javascript
 <App user={user}>
   <Header user={user}>
@@ -3657,6 +3839,7 @@ export function useAuth() {
 ```
 
 **Solution with Context:**
+
 ```javascript
 <AuthProvider>  {/* Provide once at top level */}
   <App>
@@ -3672,6 +3855,7 @@ export function useAuth() {
 ```
 
 **2. Context Setup Explained:**
+
 ```javascript
 const AuthContext = createContext(null);
 
@@ -3679,7 +3863,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    
+  
     const value = {
         user,
         isAuthenticated,
@@ -3689,17 +3873,19 @@ export function AuthProvider({ children }) {
         logout,
         checkAuth
     };
-    
+  
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 ```
 
 **Why three separate state variables?**
+
 - **`user`:** Object with `{ id, email, role }` or `null`
 - **`isAuthenticated`:** Boolean for quick checks (derived from `user` but explicit)
 - **`isLoading`:** Critical for preventing UI flashing (explained below)
 
 **Could combine:**
+
 ```javascript
 // ❌ Less clear:
 const [auth, setAuth] = useState({ user: null, loading: true });
@@ -3710,6 +3896,7 @@ const [isLoading, setIsLoading] = useState(true);
 ```
 
 **3. The isLoading Pattern (Critical for UX):**
+
 ```javascript
 useEffect(() => {
     checkAuth();
@@ -3731,6 +3918,7 @@ async function checkAuth() {
 ```
 
 **Without isLoading (bad UX):**
+
 ```
 1. App loads
 2. isAuthenticated = false (initial state)
@@ -3740,6 +3928,7 @@ async function checkAuth() {
 ```
 
 **With isLoading (good UX):**
+
 ```
 1. App loads
 2. isLoading = true → Show loading spinner
@@ -3749,6 +3938,7 @@ async function checkAuth() {
 ```
 
 **Protected route implementation:**
+
 ```javascript
 function ProtectedRoute({ children }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -3762,6 +3952,7 @@ function ProtectedRoute({ children }) {
 ```
 
 **4. Login Flow Step-by-Step:**
+
 ```javascript
 async function login(email, password) {
     const data = await api.login(email, password);  // 1. Send request to backend
@@ -3772,6 +3963,7 @@ async function login(email, password) {
 ```
 
 **What happens:**
+
 1. **Component calls:** `await login(email, password)`
 2. **API request:** POST to `/api/auth/login`
 3. **Backend:** Validates credentials, sets `request.session.userId`
@@ -3781,6 +3973,7 @@ async function login(email, password) {
 7. **ProtectedRoute:** Now sees `isAuthenticated = true`, shows protected content
 
 **5. Session Persistence Across Page Refresh:**
+
 ```javascript
 // User's journey:
 1. User logs in → session cookie set in browser
@@ -3795,6 +3988,7 @@ async function login(email, password) {
 **Key insight:** Session lives in browser cookie (HTTP-only), not JavaScript state. React state is just a mirror of the cookie's session.
 
 **6. Custom Hook Pattern:**
+
 ```javascript
 export function useAuth() {
     const context = useContext(AuthContext);
@@ -3806,6 +4000,7 @@ export function useAuth() {
 ```
 
 **Why check for null?**
+
 ```javascript
 // If someone does this (forgot AuthProvider):
 function MyComponent() {
@@ -3819,6 +4014,7 @@ function MyComponent() {
 ```
 
 **7. Logout Flow:**
+
 ```javascript
 async function logout() {
     await api.logout();          // 1. Tell backend to destroy session
@@ -3828,42 +4024,45 @@ async function logout() {
 ```
 
 **Backend destroys session:**
+
 ```javascript
 request.session.destroy();  // Removes session from store
 response.clearCookie('connect.sid');  // Tells browser to delete cookie
 ```
 
 **Frontend clears state:**
+
 ```javascript
 setUser(null);  // All components see user as logged out
 ```
 
 **8. Advanced Pattern - Role-Based Rendering:**
+
 ```javascript
 export function AuthProvider({ children }) {
     // ... existing state
-    
+  
     const hasRole = useCallback((role) => {
         return user?.role === role;
     }, [user]);
-    
+  
     const hasAnyRole = useCallback((roles) => {
         return roles.includes(user?.role);
     }, [user]);
-    
+  
     const value = {
         // ... existing values
         hasRole,
         hasAnyRole
     };
-    
+  
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // Usage in components:
 function Dashboard() {
     const { hasRole } = useAuth();
-    
+  
     return (
         <div>
             <h1>Dashboard</h1>
@@ -3875,6 +4074,7 @@ function Dashboard() {
 ```
 
 **9. Testing Context:**
+
 ```javascript
 // Test helper
 function renderWithAuth(component, { user = null } = {}) {
@@ -3890,12 +4090,13 @@ test('shows logout button when authenticated', () => {
     renderWithAuth(<Navigation />, {
         user: { id: 1, email: 'test@test.com', role: 'visitor' }
     });
-    
+  
     expect(screen.getByText('Logout')).toBeInTheDocument();
 });
 ```
 
 **10. Performance Optimization:**
+
 ```javascript
 const value = useMemo(() => ({
     user,
@@ -3911,6 +4112,7 @@ return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 ```
 
 **Why useMemo?**
+
 - **Without:** Every render creates new `value` object → all consumers re-render
 - **With:** Same object reference unless dependencies change → fewer re-renders
 - **Rule of thumb:** Always memoize Context value objects
@@ -4055,6 +4257,7 @@ export default App;
 ```
 
 **Key Patterns:**
+
 - `ProtectedRoute` – redirects to `/login` if not authenticated
 - `StaffRoute` – only allows users with `role === 'staff'`
 - All check `isLoading` to avoid flashing redirects
@@ -4065,6 +4268,7 @@ export default App;
 ## Step 2: Navigation Component
 
 ### Goal
+
 Create a header/navbar with links and logout button.
 
 ### Create `src/components/Navigation.jsx`
@@ -4942,6 +5146,7 @@ export default function StaffDashboard() {
 Create remaining CSS files:
 
 **`src/styles/Home.css`**
+
 ```css
 .home-page {
     padding: 2rem;
@@ -4970,6 +5175,7 @@ Create remaining CSS files:
 ```
 
 **`src/styles/Queue.css`**
+
 ```css
 .queue-page {
     padding: 2rem;
@@ -4999,6 +5205,7 @@ Create remaining CSS files:
 ```
 
 **`src/styles/Map.css`**
+
 ```css
 .navigation-page {
     padding: 2rem;
@@ -5029,6 +5236,7 @@ Create remaining CSS files:
 ```
 
 **`src/styles/Profile.css`**
+
 ```css
 .profile-page {
     padding: 2rem;
@@ -5051,6 +5259,7 @@ Create remaining CSS files:
 ```
 
 **`src/styles/Dashboard.css`**
+
 ```css
 .staff-dashboard {
     padding: 2rem;
@@ -5106,6 +5315,7 @@ Create remaining CSS files:
 # Run & Test Checklist
 
 ## Prerequisites
+
 - Node.js 16+ installed
 - MySQL running locally
 - `.env` configured in `server-side/`
@@ -5119,6 +5329,7 @@ npm run dev
 ```
 
 Expected output:
+
 ```
 ✓ Database connected successfully
 ✓ Database schema initialized successfully
@@ -5138,23 +5349,28 @@ Will open `http://localhost:3000` in browser.
 ## Test Flows
 
 **1. Register & Login**
+
 - Click "Register" → fill form → should redirect to login
 - Login with new credentials → should redirect to home
 - Navbar shows "Logout" button
 
 **2. View Queue Times**
+
 - Click "Queue Times" → should show all attractions with queue data
 - Auto-refresh every 30 seconds
 
 **3. Navigation**
+
 - Click "Navigation" → browser asks for location permission
 - Select attraction → click "Get Directions" → shows distance & ETA
 
 **4. Profile**
+
 - Click "My Profile" → shows email and role
 - Toggle notifications → click "Save" → shows success message
 
 **5. Staff Dashboard** (Login as staff@londonsoo.co.uk)
+
 - Click "Dashboard" → shows metrics table
 - Enter date range → click "Apply Filters" → updates data
 
@@ -5162,17 +5378,17 @@ Will open `http://localhost:3000` in browser.
 
 # Common Bugs & Fixes
 
-| Bug | Cause | Fix |
-|---|---|---|
-| "Cannot GET /api/..."  | Routes not mounted in server.js | Import and mount route handler in server.js |
-| Cookies not persisting | `credentials: 'include'` missing in fetch | Add to all fetch requests (already in api.js) |
-| "Forbidden: Staff only" for visitor | User role not set correctly | Check DB: user inserted with `role = 'visitor'` |
-| No attractions showing | SQL query syntax error or DB not initialized | Run `npm run dev` to trigger schema initialization |
-| ETA always returns 1 minute | Haversine distance too close to user | Test with locations far apart; check coordinate values |
-| React Router not working | BrowserRouter not wrapping App | Verify in App.jsx: `<BrowserRouter>` wraps everything |
-| `useAuth()` error outside AuthProvider | AuthProvider missing in App | Wrap AppRoutes() with `<AuthProvider>` |
-| CORS errors in console | CORS not configured properly | Check `cors()` origin matches FRONTEND_URL |
-| Logout doesn't redirect | Navigate not in scope | Import `useNavigate` from react-router-dom |
+| Bug                                      | Cause                                        | Fix                                                    |
+| ---------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
+| "Cannot GET /api/..."                    | Routes not mounted in server.js              | Import and mount route handler in server.js            |
+| Cookies not persisting                   | `credentials: 'include'` missing in fetch  | Add to all fetch requests (already in api.js)          |
+| "Forbidden: Staff only" for visitor      | User role not set correctly                  | Check DB: user inserted with `role = 'visitor'`      |
+| No attractions showing                   | SQL query syntax error or DB not initialized | Run `npm run dev` to trigger schema initialization   |
+| ETA always returns 1 minute              | Haversine distance too close to user         | Test with locations far apart; check coordinate values |
+| React Router not working                 | BrowserRouter not wrapping App               | Verify in App.jsx:`<BrowserRouter>` wraps everything |
+| `useAuth()` error outside AuthProvider | AuthProvider missing in App                  | Wrap AppRoutes() with `<AuthProvider>`               |
+| CORS errors in console                   | CORS not configured properly                 | Check `cors()` origin matches FRONTEND_URL           |
+| Logout doesn't redirect                  | Navigate not in scope                        | Import `useNavigate` from react-router-dom           |
 
 ---
 
@@ -5190,6 +5406,7 @@ Will open `http://localhost:3000` in browser.
 8. **User Reviews** – Allow visitors to review attractions
 
 **Out of Scope (Beyond This Tutorial):**
+
 - Payment processing
 - Advanced analytics/BI
 - Machine learning predictions
@@ -5202,6 +5419,7 @@ Will open `http://localhost:3000` in browser.
 ## End of Tutorial
 
 You now have a complete roadmap to build the London Zoo platform. Each step includes:
+
 - Clear goals
 - File structure
 - Runnable code snippets
@@ -5209,6 +5427,7 @@ You now have a complete roadmap to build the London Zoo platform. Each step incl
 - Common pitfalls
 
 **Next Actions:**
+
 1. Copy backend code into your `/server-side` directory
 2. Copy frontend code into your `/client-side` directory
 3. Update `.env` with your MySQL credentials
@@ -5216,4 +5435,3 @@ You now have a complete roadmap to build the London Zoo platform. Each step incl
 5. Refer to "Common Bugs & Fixes" if issues arise
 
 Good luck! 🦁
-
