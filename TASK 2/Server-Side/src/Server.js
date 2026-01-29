@@ -60,7 +60,7 @@ const apiLimiter = rateLimit({
 });
 
 /* APPLICATION OF RATE LIMITERS TO AUTHENTICATION ROUTES */
-app.use('/api/auth/logim',authLimiter);
+app.use('/api/auth/login',authLimiter);
 app.use('/api/auth/register',authLimiter);
 
 /* API REQUEST LOGGING */
@@ -79,7 +79,7 @@ app.use('/api/profile',profileRoutes);
 app.use('/api/staff-metrics',staffMetricsRoutes);
 
 /* HEALTH CHECK */
-app.get('api/health',( request , response )=>{
+app.get('/api/health',( request , response )=>{
     response.json({
         status : 'ok',
         timestamp : new Date().toISOString(),
