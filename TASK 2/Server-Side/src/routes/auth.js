@@ -67,7 +67,7 @@ router.post( '/register' , async ( request , response )=>{
     }catch( error ){
         console.error(chalk.red(`Registration error:${error.message}`));
         response.status(500).json({
-            error : 'Regsitration failed. Please try again.'
+            error : 'Registration failed. Please try again.'
         });
     }
 });

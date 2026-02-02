@@ -16,7 +16,7 @@ export function requireAuth( request , response , next ){
 }
 
 /* User is staff member authentication check */
-export function requestStaff( request , response , next ){
+export function requireStaff( request , response , next ){
     if(!request.userRole || request.userRole !== 'staff'){
         console.log(chalk.yellow(`Staff-only access denied for user ${request.userId}`));
         return response.status(403).json({

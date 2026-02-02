@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { initializeDatabase } from './database/schema.js';
-import { testConnection } from './database/connection.js';
+import { testConnection, initializeConnection, getPool } from './database/connection.js';
 
 /* PAGE ROUTE HANDLERS */
 import authRoutes from './routes/auth.js';
@@ -65,7 +65,7 @@ app.use('/api/auth/register',authLimiter);
 
 /* API REQUEST LOGGING */
 app.use(( request , response , next )=>{
-    console.log(chalk.cyan(`${request.method}${request.path}`));
+    console.log(chalk.cyan(`${request.method} ${request.path}`));
     next();
 });
 
@@ -109,6 +109,7 @@ app.use(( err , request , response , next )=>{
 
 async function startServer(){
     try {
+        await initializeConnection();
         const isConnected = await testConnection();
         if( !isConnected ){
             throw new Error(`Cannot connect to database.`);
@@ -116,7 +117,7 @@ async function startServer(){
         await initializeDatabase();
 
         app.listen(PORT,()=>{
-            console.log(chalk.green(`Your server is ruinning on http://localhost:${PORT} all great one.`))
+            console.log(chalk.green(`Your server is running on http://localhost:${PORT} all great one.`))
         });
     }catch( error ){
         console.error(chalk.red(`Failed to start server:${error.message}`));
@@ -129,6 +130,9 @@ startServer();
 /* SERVER SHUTDOWN */
 process.on('SIGTERM', async () => {
     console.log('SIGTERM received, closing server...');
-    await pool.end();  
+    const pool = getPool();
+    if(pool){
+        await pool.end();
+    }
     process.exit(0);
 });

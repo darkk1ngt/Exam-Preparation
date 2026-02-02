@@ -188,45 +188,68 @@ FRONTEND_URL=http://localhost:3000
 }
 ```
 
-### Step 1d: Create `database/connections.js`
+### Step 1d: Create `database/connection.js`
 
-**Goal:** Establish MySQL connection pool for queries
+**Goal:** Establish MySQL connection pool with automatic database creation
 
 ```javascript
 import mysql from 'mysql2/promise';
 import chalk from 'chalk';
 
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
+const initialPool = mysql.createPool({
+    host : process.env.DB_HOST,
+    user : process.env.DB_USER,
+    password : process.env.DB_PASSWORD,
+    waitForConnections : true,
+    connectionLimit : 10,
+    queueLimit : 0
 });
 
-export async function query(sql, values = []) {
-    const connection = await pool.getConnection();
-    try {
-        const [results] = await connection.execute(sql, values);
-        return results;
-    } catch (error) {
-        console.error(chalk.red(`Database query error: ${error.message}`));
+let pool;
+
+export async function initializeConnection(){
+    try{
+        const connection = await initialPool.getConnection();
+        await connection.execute(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
+        connection.release();
+        console.log(chalk.yellow(`Database created or already exists.`));
+        
+        pool = mysql.createPool({
+            host : process.env.DB_HOST,
+            user : process.env.DB_USER,
+            password : process.env.DB_PASSWORD,
+            database : process.env.DB_NAME,
+            waitForConnections : true,
+            connectionLimit : 10,
+            queueLimit : 0
+        });
+    }catch( error ){
+        console.error(chalk.red(`Failed to initialize connection: ${error.message}`));
         throw error;
-    } finally {
+    }
+}
+
+export async function query(sql,values=[]){
+    const connection = await pool.getConnection();
+    try{
+        const [ results ] = await connection.execute( sql , values );
+        return results;
+    }catch( error ){
+        console.error(chalk.bgRedBright(`Database query error.${error.message}`));
+        throw error;
+    }finally{
         connection.release();
     }
 }
 
-export async function testConnection() {
-    try {
+export async function testConnection(){
+    try{
         const connection = await pool.getConnection();
         connection.release();
-        console.log(chalk.green('✓ Database connected successfully'));
+        console.log(chalk.bgGreen(`Database connected successfully.`));
         return true;
-    } catch (error) {
-        console.error(chalk.red(`✗ Database connection failed: ${error.message}`));
+    }catch( error ){
+        console.error(chalk.red(`Database connection failed.${error.message}`));
         return false;
     }
 }
@@ -548,32 +571,44 @@ WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'African Savanna')
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { query } from './connections.js';
+import mysql from 'mysql2/promise';
 
-export async function initializeDatabase() {
-    try {
-        const schemaPath = path.join(process.cwd(), 'src', 'database', 'schema.sql');
+export async function initializeDatabase(){
+    try{
+        const schemaPath = path.join(process.cwd(),'src','database','schema.sql');
         const schemaSQL = fs.readFileSync(schemaPath, 'utf-8');
 
-        // Split SQL into individual statements (simple approach)
+        const connection = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD
+        });
+
         const statements = schemaSQL
             .split(';')
-            .map(stmt => stmt.trim())
-            .filter(stmt => stmt && !stmt.startsWith('--'));
+            .map(stmt=>stmt.trim())
+            .filter(stmt=>stmt && !stmt.startsWith('--'));
 
-        for (const statement of statements) {
-            await query(statement);
-        }
-
-        console.log(chalk.green('✓ Database schema initialized successfully'));
-    } catch (error) {
-        console.error(chalk.red(`✗ Database initialization failed: ${error.message}`));
+            for( const statement of statements){
+                if(statement){
+                    await connection.query(statement);
+                }
+            }
+            
+            await connection.end();
+            console.log(chalk.greenBright(`Database schema initialized successfully.`));        
+    }catch( error ){
+        console.error(chalk.red(`Database initialization failed : ${error.message}`));
         throw error;
     }
 }
 ```
 
 **Explanation:**
+
+- Uses `mysql2/promise` to create a direct connection (not from pool) for schema initialization
+- Uses `.query()` instead of `.execute()` to avoid prepared statement limitations with DDL (CREATE, USE statements)
+- Creates connection without specifying database (so it can create the database first via schema.sql)
 
 - Reads `schema.sql` file
 - Splits into individual statements
@@ -790,7 +825,7 @@ app.use((err, request, response, next) => {
 // === Startup ===
 async function startServer() {
     try {
-        // Test DB connection
+        await initializeConnection();
         const isConnected = await testConnection();
         if (!isConnected) {
             throw new Error('Cannot connect to database');
@@ -801,10 +836,10 @@ async function startServer() {
 
         // Start listening
         app.listen(PORT, () => {
-            console.log(chalk.green(`✓ Server running on http://localhost:${PORT}`));
+            console.log(chalk.green(`Your server is running on http://localhost:${PORT}`));
         });
     } catch (error) {
-        console.error(chalk.red(`✗ Failed to start server: ${error.message}`));
+        console.error(chalk.red(`Failed to start server: ${error.message}`));
         process.exit(1);
     }
 }
@@ -814,11 +849,13 @@ startServer();
 
 **Key Points:**
 
+- **`initializeConnection()` first** – Creates database if it doesn't exist
+- **`testConnection()` second** – Verifies connection to the database
+- **`initializeDatabase()` third** – Creates all tables from schema.sql
 - `credentials: true` on CORS – allows cookies to be sent from frontend
 - Session `maxAge` – 24 hours before session expires
 - Rate limiters on auth routes – prevent brute-force attacks
 - Global error handler – catches all errors and sends consistent responses
-- `startServer()` initializes DB before listening
 
 **Deep Dive into Server Architecture:**
 

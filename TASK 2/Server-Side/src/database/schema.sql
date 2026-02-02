@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS london_zoo CHARACTER SET utf8mb COLLATE utf8mb_unicode_cli;
-USE london_zoo
+CREATE DATABASE IF NOT EXISTS london_zoo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE london_zoo;
 
 -- user and visitor table --
 CREATE TABLE IF NOT EXISTS users (
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS queue_status(
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (attraction_id) REFERENCES attractions(id) ON DELETE CASCADE,
     INDEX idx_attraction(attraction_id),
-    INDEX idx_last_updated(last_updated)
+    INDEX idx_last_updated(last_updated),
     UNIQUE KEY unique_attraction_queue(attraction_id)
 );
 
