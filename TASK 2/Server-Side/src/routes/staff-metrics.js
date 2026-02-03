@@ -120,9 +120,52 @@ router.get('/summary' , requireAuth , requireStaff , async( request , response )
 /* Update metrics for an attraction */
 router.post('/' , requireAuth , requireStaff , async( request , response )=>{
     try {
-        
+        const{ attraction_id , metric_date , ticket_sales , uptime_percentage , visitors_count , avg_wait_time_minutes } = request.body
+
+        /* Validate required fields */
+
+        if( !attraction_id || !metric_date ){
+            return response.status(400).json({
+                error : 'attraction_id and metric_date are required.'
+            });
+        }
+
+        /* Validate data types */
+
+        if( isNaN( attraction_id ) || isNaN( ticket_sales ) || isNaN( uptime_percentage ) || isNaN( visitors_count )){
+            return response.status(400).json({
+                error : 'All metrics must be numbers.'
+            });
+        }
+
+        /* Validate percentages */
+
+        if( uptime_percentage < 0 || uptime_percentage > 100 ){
+            return response.status(400).json({
+                error : 'uptime_percentage must be greater than 0 and less than 100.'
+            });
+        }
+
+        /* Insert or Update */
+
+        await query(`
+            INSERT INTO staff_metrics
+            ( attraction_id , metric_date , ticket_sales , uptime_percentage , visitors_count , avg_wait_time_minutes ) VALUES ( ? , ? , ? , ? , ? , ? )
+             ON DUPLICATE KEY UPDATE
+             s = VALUES(ticket_sales),
+            uptime_percentage = VALUES(uptime_percentage),
+            visitors_count = VALUES(visitors_count),
+            avg_wait_time_minutes = VALUES(avg_wait_time_minutes)
+        `, [attraction_id, metric_date, ticket_sales, uptime_percentage, visitors_count, avg_wait_time_minutes]);
+
+        response.json({
+            message : 'Metrics recorded successfully.'
+        })
     } catch (error) {
-        
+        console.error(`Error recording metrics:${error.message}`);
+        response.status(500).json({
+            error : 'Failed to record metrics.'
+        })
     }
 })
 

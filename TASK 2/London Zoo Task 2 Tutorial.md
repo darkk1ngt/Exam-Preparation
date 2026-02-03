@@ -213,7 +213,7 @@ export async function initializeConnection(){
         await connection.execute(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
         connection.release();
         console.log(chalk.yellow(`Database created or already exists.`));
-        
+      
         pool = mysql.createPool({
             host : process.env.DB_HOST,
             user : process.env.DB_USER,
@@ -440,7 +440,7 @@ ON DUPLICATE KEY UPDATE queue_length = VALUES(queue_length);
 -- Initialize metrics for today
 INSERT INTO staff_metrics (attraction_id, metric_date, ticket_sales, uptime_percentage, visitors_count)
 SELECT id, CURDATE(), 0, 100.00, 0 FROM attractions
-ON DUPLICATE KEY UPDATE 
+ON DUPLICATE KEY UPDATE
     ticket_sales = VALUES(ticket_sales),
     uptime_percentage = VALUES(uptime_percentage);
 
@@ -578,25 +578,19 @@ export async function initializeDatabase(){
         const schemaPath = path.join(process.cwd(),'src','database','schema.sql');
         const schemaSQL = fs.readFileSync(schemaPath, 'utf-8');
 
-        const connection = await mysql.createConnection({
+        // First, create database without selecting it
+        let connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD
+            password: process.env.DB_PASSWORD,
+            multipleStatements: true
         });
 
-        const statements = schemaSQL
-            .split(';')
-            .map(stmt=>stmt.trim())
-            .filter(stmt=>stmt && !stmt.startsWith('--'));
-
-            for( const statement of statements){
-                if(statement){
-                    await connection.query(statement);
-                }
-            }
-            
-            await connection.end();
-            console.log(chalk.greenBright(`Database schema initialized successfully.`));        
+        // Execute the entire schema SQL at once (includes USE statement)
+        await connection.query(schemaSQL);
+        await connection.end();
+        
+        console.log(chalk.greenBright(`Database schema initialized successfully.`));        
     }catch( error ){
         console.error(chalk.red(`Database initialization failed : ${error.message}`));
         throw error;
@@ -607,48 +601,38 @@ export async function initializeDatabase(){
 **Explanation:**
 
 - Uses `mysql2/promise` to create a direct connection (not from pool) for schema initialization
-- Uses `.query()` instead of `.execute()` to avoid prepared statement limitations with DDL (CREATE, USE statements)
-- Creates connection without specifying database (so it can create the database first via schema.sql)
-
-- Reads `schema.sql` file
-- Splits into individual statements
-- Executes each statement in order
+- Uses `.query()` with `multipleStatements: true` to execute entire schema.sql file at once
+- Executes the entire schema SQL including CREATE DATABASE and USE statements
 - Called once on server startup in `server.js`
 
 **Note:** For production, consider using migrations (e.g., Knex.js or db-migrate).
 
-**Detailed Code Walkthrough:**
+**Key Features:**
 
 **File Reading with ES Modules:**
 
 ```javascript
-const schemaPath = path.join(process.cwd(), 'src', 'database', 'schema.sql');
+const schemaPath = path.join(process.cwd(),'src','database','schema.sql');
 ```
 
 - `process.cwd()` returns current working directory (where you ran `npm run dev`)
 - **Why not `__dirname`?** We're using ES modules (`"type": "module"` in package.json), which don't have `__dirname`
 - `path.join()` creates OS-agnostic paths (works on Windows and Unix)
 
-**SQL Statement Parsing:**
+**Multiple Statements Support:**
 
 ```javascript
-const statements = schemaSQL
-    .split(';')  // Split on semicolons (standard SQL delimiter)
-    .map(stmt => stmt.trim())  // Remove whitespace
-    .filter(stmt => stmt && !stmt.startsWith('--'));  // Remove empty lines and comments
+multipleStatements: true
 ```
 
-**Why This Parsing Approach?**
-
-- **Simple and effective** for basic schema files
-- **Limitations:** Doesn't handle semicolons inside strings or stored procedures
-- **Production alternative:** Use migration libraries that parse SQL properly
+- Allows executing multiple SQL statements in one query (required for schema.sql which contains CREATE DATABASE, USE, CREATE TABLE, etc.)
+- Without this, only the first statement would execute
 
 **Error Handling Philosophy:**
 
 ```javascript
 catch (error) {
-    console.error(chalk.red(`✗ Database initialization failed: ${error.message}`));
+    console.error(chalk.red(`Database initialization failed : ${error.message}`));
     throw error;  // Re-throw to stop server startup
 }
 ```
@@ -661,7 +645,7 @@ catch (error) {
 
 - Called once in `server.js` before starting HTTP listener
 - **Idempotent:** Safe to run multiple times (thanks to `IF NOT EXISTS` and `WHERE NOT EXISTS` in SQL)
-- **Development workflow:** Drop database → restart server → schema recreated automatically
+- **Development workflow:** Restart server → schema recreated automatically
 
 **Production Considerations:**
 For real-world applications, replace this with a migration system:
@@ -710,15 +694,15 @@ server-side/src/
 
 ```javascript
 import 'dotenv/config';
-import express from 'express';
+import express, { request, response } from 'express';
 import session from 'express-session';
 import chalk from 'chalk';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { initializeDatabase } from './database/schema.js';
-import { testConnection } from './database/connections.js';
+import { testConnection, initializeConnection, getPool } from './database/connection.js';
 
-// Import route handlers (we'll create these in later steps)
+/* PAGE ROUTE HANDLERS */
 import authRoutes from './routes/auth.js';
 import attractionsRoutes from './routes/attractions.js';
 import queueRoutes from './routes/queue.js';
@@ -730,115 +714,123 @@ import staffMetricsRoutes from './routes/staff-metrics.js';
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-const app = express();
+const app = express()
 
-// === CORS Setup ===
 app.use(cors({
-    origin: FRONTEND_URL,
-    credentials: true,  // Allow cookies
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    origin : FRONTEND_URL,
+    credentials : true, /* allow cookies */
+    methods : ['GET','POST','PATCH','DELETE'],
+    allowedHeaders : ['Content-Type','Authorization']
 }));
 
-// === Body Parsing ===
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({extended : true}));
 
-// === Session Middleware ===
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'change_this_in_production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,  // Prevent JS access to cookie
-        secure: process.env.NODE_ENV === 'production',  // HTTPS only in production
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000  // 24 hours
+    secret : process.env.SESSION_SECRET || 'change_this_in_production',
+    resave : false,
+    saveUninitialized : false,
+    cookie : {
+        httpOnly : true, /* prevents js access to cookies yum yum */
+        secure : process.env.NODE_ENV === 'production',
+        sameSite : 'lax',
+        maxAge : 24 * 60 * 60 * 1000
     }
 }));
 
-// === Rate Limiters ===
+/* RATE LIMITATION */
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,  // 15 minutes
-    max: 10,  // Max 10 attempts per window
-    message: 'Too many login/register attempts, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false
+    windowMs : 15 * 60 * 1000,
+    max : 10,
+    message : 'Too many login/register attempts, please try again later.',
+    standardHeaders : true,
+    legacyHeaders : false
 });
 
 const apiLimiter = rateLimit({
-    windowMs: 60 * 1000,  // 1 minute
-    max: 30,  // Generous limit for normal API calls
-    standardHeaders: true,
-    legacyHeaders: false
+    windowMs : 60 * 1000,
+    max : 30,
+    standardHeaders : true,
+    legacyHeaders : false
 });
 
-// Apply rate limiters to auth routes
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
+/* APPLICATION OF RATE LIMITERS TO AUTHENTICATION ROUTES */
+app.use('/api/auth/login',authLimiter);
+app.use('/api/auth/register',authLimiter);
 
-// === Request Logging ===
-app.use((request, response, next) => {
+/* API REQUEST LOGGING */
+app.use(( request , response , next )=>{
     console.log(chalk.cyan(`${request.method} ${request.path}`));
     next();
 });
 
-// === Routes ===
-app.use('/api/auth', authRoutes);
-app.use('/api/attractions', attractionsRoutes);
-app.use('/api/queue', queueRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/navigation', navigationRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/staff-metrics', staffMetricsRoutes);
+/* ROUTES */
+app.use('/api/auth',authRoutes);
+app.use('/api/attractions',attractionsRoutes);
+app.use('/api/queue/',queueRoutes);
+app.use('/api/notifications',notificationsRoutes);
+app.use('/api/navigation',navigationRoutes);
+app.use('/api/profile',profileRoutes);
+app.use('/api/staff-metrics',staffMetricsRoutes);
 
-// === Health Check ===
-app.get('/api/health', (request, response) => {
+/* HEALTH CHECK */
+app.get('/api/health',( request , response )=>{
     response.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        status : 'ok',
+        timestamp : new Date().toISOString(),
+        uptime : process.uptime()
     });
 });
 
-// === 404 Handler ===
-app.use((request, response) => {
+/* 404 SERVER HANDLER */
+app.use(( request , response )=>{
     response.status(404).json({
-        error: 'Not Found',
-        message: `Route ${request.originalUrl} does not exist.`
+        error : 'Not Found',
+        message : `Route ${request.originalUrl} does not exist.`
     });
 });
 
-// === Global Error Handler ===
-app.use((err, request, response, next) => {
-    console.error(chalk.red(`Error: ${err.message}`));
-    if (process.env.NODE_ENV === 'development') {
+/* GLOBAL ERROR HANDLER */
+app.use(( err , request , response , next )=>{
+    console.error(chalk.red(`Error:${err.message}`));
+    if( process.env.NODE_ENV === 'development' ){
         console.error(err.stack);
     }
-
-    response.status(err.status || 500).json({
-        error: err.message || 'Internal Server Error',
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    response.status( err.status || 500 ).json({
+        error : err.message || 'Internal Server Error',
+        ...(process.env.NODE_ENV === 'development' && { stack : err.stack })
     });
 });
 
-// === Startup ===
-async function startServer() {
+async function startServer(){
     try {
         await initializeConnection();
         const isConnected = await testConnection();
-        if (!isConnected) {
-            throw new Error('Cannot connect to database');
+        if( !isConnected ){
+            throw new Error(`Cannot connect to database.`);
         }
-
-        // Initialize schema
         await initializeDatabase();
 
-        // Start listening
-        app.listen(PORT, () => {
-            console.log(chalk.green(`Your server is running on http://localhost:${PORT}`));
+        app.listen(PORT,()=>{
+            console.log(chalk.green(`Your server is running on http://localhost:${PORT} all great one.`))
         });
-    } catch (error) {
+    }catch( error ){
+        console.error(chalk.red(`Failed to start server:${error.message}`));
+        process.exit(1);
+    }
+}
+
+startServer();
+
+/* SERVER SHUTDOWN */
+process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, closing server...');
+    const pool = getPool();
+    if(pool){
+        await pool.end();
+    }
+    process.exit(0);
+});
         console.error(chalk.red(`Failed to start server: ${error.message}`));
         process.exit(1);
     }
@@ -1029,45 +1021,37 @@ process.on('SIGTERM', async () => {
 ```javascript
 import chalk from 'chalk';
 
-/**
- * Middleware: Check if user is authenticated
- * Sets request.userId and request.userRole
- */
-export function requireAuth(request, response, next) {
-    if (!request.session || !request.session.userId) {
+/* User authentication check */
+export function requireAuth( request , response , next ){
+    if(!request.session || !request.session.userId){
         console.log(chalk.yellow(`Unauthorized access attempt to ${request.path}`));
         return response.status(401).json({
-            error: 'Authentication required',
-            message: 'Please log in to access this resource'
+            error : 'Authentication Required.',
+            message : 'Please log in to access this resource.'
         });
     }
+
     request.userId = request.session.userId;
-    request.userRole = request.session.role;
+    request.userRole = request.session.userRole;
     next();
 }
 
-/**
- * Middleware: Check if user is staff (must call requireAuth first)
- */
-export function requireStaff(request, response, next) {
-    if (!request.userRole || request.userRole !== 'staff') {
+/* User is staff member authentication check */
+export function requireStaff( request , response , next ){
+    if(!request.userRole || request.userRole !== 'staff'){
         console.log(chalk.yellow(`Staff-only access denied for user ${request.userId}`));
         return response.status(403).json({
-            error: 'Forbidden',
-            message: 'This resource is for staff only'
+            error : 'Forbidden.',
+            message : 'This resource is for staff only.'
         });
     }
-    next();
+    next()
 }
 
-/**
- * Middleware: Optional authentication (user may or may not be logged in)
- * If logged in, sets request.userId; otherwise null
- */
-export function optionalAuth(request, response, next) {
-    if (request.session && request.session.userId) {
+export function optionalAuth( request , response , next ){
+    if(request.session && request.session.userId){
         request.userId = request.session.userId;
-        request.userRole = request.session.role;
+        request.userRole = request.session.userRole;
     }
     next();
 }
@@ -1085,7 +1069,7 @@ export function optionalAuth(request, response, next) {
 
 ```javascript
 export function requireAuth(request, response, next) {
-    if (!request.session || !request.session.userId) {
+    if(!request.session || !request.session.userId){
         return response.status(401).json({
             error: 'Authentication required',
             message: 'Please log in to access this resource'
@@ -1253,7 +1237,7 @@ describe('requireAuth middleware', () => {
         const res = await request(app)
             .get('/api/profile')
             .expect(401);
-      
+    
         expect(res.body.error).toBe('Authentication required');
     });
   
@@ -1284,135 +1268,129 @@ server-side/src/routes/
 ### Step 4a: Create `routes/auth.js`
 
 ```javascript
-import express from 'express';
+import express, { request, response } from 'express';
 import bcrypt from 'bcrypt';
 import chalk from 'chalk';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 
 const router = express.Router();
 
-/**
- * POST /api/auth/register
- * Register a new user
- * Body: { email, password }
- */
-router.post('/register', async (request, response) => {
-    try {
-        const { email, password } = request.body;
+/* user registration */
 
-        // Validate inputs
-        if (!email || !password) {
+router.post( '/register' , async ( request , response )=>{
+    try{
+        /* Email and password destructuring from the main request body */
+        const { email , password } = request.body
+        if( !email || !password ){
             return response.status(400).json({
-                error: 'Email and password are required'
+                error : 'Email and password are required.'
             });
         }
 
-        // Validate email format
+        /* Email format restriction */
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if( !emailRegex.test(email) ){
             return response.status(400).json({
-                error: 'Invalid email format'
+                error : 'Invalid email format.'
             });
         }
 
-        // Validate password strength
-        // Must have: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+        /* Password format restriction */
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-        if (!passwordRegex.test(password)) {
+        if( !passwordRegex.test(password) ){
             return response.status(400).json({
-                error: 'Password must be at least 8 characters with uppercase, lowercase, number, and special character'
+                error : 'Password must be atleast 8 characters with uppercase, lowercase, number and special characters.'
             });
         }
 
-        // Check if email already exists
+        /* Verify email existence */
         const existingUsers = await query(
             'SELECT id FROM users WHERE email = ?',
             [email]
         );
-        if (existingUsers.length > 0) {
+
+        if( existingUsers.length > 0){
             return response.status(400).json({
-                error: 'Email already registered'
-            });
+                error : 'Email already registered.'
+            })
         }
 
-        // Hash password
-        const passwordHash = await bcrypt.hash(password, 10);
+        /* Password hashing */
+        const passwordHash = await bcrypt.hash( password , 10 );
 
-        // Insert user
+        /* Insert user into database */
         const result = await query(
-            'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)',
-            [email, passwordHash, 'visitor']
+            'INSERT INTO users (email,password_hash,role) VALUES ( ? , ? , ? )',
+            [ email , passwordHash , 'visitor']
         );
 
-        console.log(chalk.green(`✓ New user registered: ${email}`));
+        console.log(chalk.green(`New user registered:${email}`));
 
         response.status(201).json({
-            message: 'Registration successful',
-            user: {
-                id: result.insertId,
-                email: email,
-                role: 'visitor'
+            message : 'Registration successful.',
+            user : {
+                id : result.insertId,
+                email : email,
+                role : 'visitor'
             }
         });
-    } catch (error) {
-        console.error(chalk.red(`Registration error: ${error.message}`));
+    }catch( error ){
+        console.error(chalk.red(`Registration error:${error.message}`));
         response.status(500).json({
-            error: 'Registration failed. Please try again.'
+            error : 'Registration failed. Please try again.'
         });
     }
 });
 
-/**
- * POST /api/auth/login
- * Authenticate user and create session
- * Body: { email, password }
- */
-router.post('/login', async (request, response) => {
-    try {
-        const { email, password } = request.body;
+/* user login */
 
-        // Validate inputs
-        if (!email || !password) {
+router.post('/login' , async ( request , response )=>{
+    try{
+        const { email , password } = request.body;
+
+        /* input validation */
+        if( !email || !password ){
             return response.status(400).json({
-                error: 'Email and password are required'
+                error : 'Email and password are required.'
             });
         }
 
-        // Fetch user by email
+        /* fetch user by email */
         const users = await query(
-            'SELECT id, email, password_hash, role FROM users WHERE email = ?',
+            'SELECT id,email,password_hash,role FROM users WHERE email = ?',
             [email]
         );
 
-        if (users.length === 0) {
+        if( users.length === 0 ){
             return response.status(401).json({
-                error: 'Invalid email or password'
+                error : 'Invalid email or password.'
             });
         }
 
         const user = users[0];
 
-        // Compare passwords
+        /* password comparison */
         const isValidPassword = await bcrypt.compare(password, user.password_hash);
-        if (!isValidPassword) {
+        
+        if(!isValidPassword){
             return response.status(401).json({
-                error: 'Invalid email or password'
+                error : 'Invalid email or password.'
             });
         }
 
-        // Create session
+        /* session creation */
         request.session.userId = user.id;
         request.session.email = user.email;
-        request.session.role = user.role;
+        request.session.userRole = user.role;
 
-        console.log(chalk.green(`✓ User logged in: ${email}`));
+        console.log(chalk.green(`User logged in:${email}`));
 
         response.status(200).json({
-            message: 'Login successful',
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role
+            message : 'Login successful.',
+            user : {
+                id : user.id,
+                email : user.email,
+                role : user.role
             }
         });
     } catch (error) {
@@ -1936,7 +1914,7 @@ router.get('/', optionalAuth, async (request, response) => {
             [request.userId]
         );
         const favoriteIds = new Set(favorites.map(f => f.attraction_id));
-      
+    
         // Add isFavorite flag to each attraction
         attractions.forEach(a => {
             a.isFavorite = favoriteIds.has(a.id);
@@ -2676,14 +2654,14 @@ async function getDirections(attractionId) {
     navigator.geolocation.getCurrentPosition(
         async (position) => {
             const { latitude, longitude } = position.coords;
-          
+        
             try {
                 const eta = await api.calculateETA(
                     latitude,
                     longitude,
                     attractionId
                 );
-              
+            
                 setETA({
                     distance: eta.distance_km,
                     time: eta.estimated_time_minutes,
@@ -3730,10 +3708,10 @@ class ApiService {
         if (this.abortControllers.has(endpoint)) {
             this.abortControllers.get(endpoint).abort();
         }
-      
+    
         const controller = new AbortController();
         this.abortControllers.set(endpoint, controller);
-      
+    
         try {
             const response = await fetch(`${API_BASE}${endpoint}`, {
                 ...config,

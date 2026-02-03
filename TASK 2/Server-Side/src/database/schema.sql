@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR (225) NOT NULL,
     role ENUM ('visitor' , 'staff') DEFAULT 'visitor',
     reset_token CHAR (64) DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT TIMESTAMP,
-    edited_at TIMESTAMP DEFAULT CURRENT TIMESTAMP ON UPDATE CURRENT TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    edited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email(email),
     INDEX idx_role(role),
     INDEX idx_reset_token(reset_token)
@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS user_preferences(
     notifications_enabled BOOLEAN DEFAULT TRUE,
     preferred_attractions TEXT, -- in json format ['penguins' , 'giraffes']
     distance_alert_threshold INT DEFAULT 500, -- meters
-    created_at TIMESTAMP DEFAULT CURRENT TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_user(user_id)
 );
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS notifications(
     type ENUM('queue_alerts' , 'status_updates' , 'general') DEFAULT 'general',
     message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (attraction_id) REFERENCES attractions(id) ON DELETE SET NULL,
     INDEX idx_user_read(user_id, is_read),
@@ -89,19 +89,19 @@ CREATE TABLE IF NOT EXISTS staff_metrics(
 
 -- Insert sample attractions --
 INSERT INTO attractions (name, description, category, latitude, longitude, capacity, estimated_duration_minutes, is_open)
-SELECT 'African Savanna' , 'See Lions , Zebras and giraffes in open habitat' , 'Mammals' , 51.5350, -0.1507, 200, 45
+SELECT 'African Savanna' , 'See Lions , Zebras and giraffes in open habitat' , 'Mammals' , 51.5350, -0.1507, 200, 45, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'African Savanna')
 UNION ALL 
-SELECT 'Penguin Pool', 'Watch playful penguins dive , swim , smile and wave' , 'Birds' , 51.5355, -0.1500, 100, 30
+SELECT 'Penguin Pool', 'Watch playful penguins dive , swim , smile and wave' , 'Birds' , 51.5355, -0.1500, 100, 30, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'Penguin Pool')
 UNION ALL
-SELECT 'Reptile House', 'Explore snakes, lizards, and crocodiles', 'Reptiles', 51.5345, -0.1500, 100, 25
+SELECT 'Reptile House', 'Explore snakes, lizards, and crocodiles', 'Reptiles', 51.5345, -0.1500, 100, 25, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'Reptile House')
 UNION ALL
-SELECT 'Tropical Forest', 'Discover monkeys, birds, and exotic insects', 'Mammals', 51.5360, -0.1515, 180, 50
+SELECT 'Tropical Forest', 'Discover monkeys, birds, and exotic insects', 'Mammals', 51.5360, -0.1515, 180, 50, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'Tropical Forest')
 UNION ALL
-SELECT 'Big Cats Arena', 'View tigers, leopards, and panthers', 'Mammals', 51.5340, -0.1495, 250, 40
+SELECT 'Big Cats Arena', 'View tigers, leopards, and panthers', 'Mammals', 51.5340, -0.1495, 250, 40, TRUE
 WHERE NOT EXISTS (SELECT 1 FROM attractions WHERE name = 'Big Cats Arena');
 
 -- Initialize queue status for all attractions --
