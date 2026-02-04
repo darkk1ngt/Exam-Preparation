@@ -20,7 +20,7 @@ export async function initializeDatabase(){
         await connection.query(schemaSQL);
         await connection.end();
         
-        console.log(chalk.greenBright(`Database schema initialized successfully.`));        
+        console.log(chalk.bold.cyan(`Database schema initialized successfully.`));        
     }catch( error ){
         console.error(chalk.red(`Database initialization failed : ${error.message}`));
         throw error;

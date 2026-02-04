@@ -17,7 +17,7 @@ export async function initializeConnection(){
         const connection = await initialPool.getConnection();
         await connection.execute(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
         connection.release();
-        console.log(chalk.yellow(`Database created or already exists.`));
+        console.log(chalk.white(`Database created or already exists.`));
         
         pool = mysql.createPool({
             host : process.env.DB_HOST,
@@ -51,7 +51,7 @@ export async function testConnection(){
     try{
         const connection = await pool.getConnection();
         connection.release();
-        console.log(chalk.bgGreen(`Database connected successfully.`));
+        console.log(chalk.grey(`Database connected successfully.`));
         return true;
     }catch( error ){
         console.error(chalk.red(`Database connection failed.${error.message}`));

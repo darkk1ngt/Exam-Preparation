@@ -23,9 +23,9 @@ router.get('/:attractionId' , optionalAuth , async( request , response )=>{
                 a.name as attraction_name,
                 qs.queue_length,
                 qs.estimated_wait_minutes,
-                qs.as_updated
+                qs.last_updated
             FROM queue_status qs
-            JOIN attractions a ON qs.attractions_id = a.id
+            JOIN attractions a ON qs.attraction_id = a.id
             WHERE qs.attraction_id = ?
             `,[attractionId]);
 

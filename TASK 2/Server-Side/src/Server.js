@@ -117,7 +117,8 @@ async function startServer(){
         await initializeDatabase();
 
         app.listen(PORT,()=>{
-            console.log(chalk.green(`Your server is running on http://localhost:${PORT} all great one.`))
+            console.log(chalk.bold.magenta
+                (`Your server is running on http://localhost:${PORT} all great one.`))
         });
     }catch( error ){
         console.error(chalk.red(`Failed to start server:${error.message}`));
