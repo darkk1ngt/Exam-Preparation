@@ -41,6 +41,20 @@ router.post('/eta' , optionalAuth , async( request , response)=>{
             });
         }
 
+        /* Boundary control */
+
+        if( user_latitude <-90 || user_latitude >90 ){
+            return response.status(400).json({
+                error : 'Latitude must be between -180 and +180 degrees.'
+            })
+        }
+
+        if( user_longitude < -180 || user_longitude > 180){
+            return response.status(400).json({
+                error : 'Longitude must be between -180 and +180 degrees.'
+            })
+        }
+
         if( !attraction_id || isNaN( attraction_id )){
             return response.status(400).json({
                 error : 'attraction_id is required.'

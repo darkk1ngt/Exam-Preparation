@@ -91,11 +91,11 @@ router.get('/' , requireAuth , async( request , response )=>{
                 n.message,
                 n.is_read,
                 n.created_at,
-                a.name as attraction name
+                a.name as attraction_name
                 FROM notifications n
                 LEFT JOIN attractions a ON n.attraction_id = a.id
                 WHERE n.user_id = ?
-                ORDER BY n.created_At DESC
+                ORDER BY n.created_at DESC
                 LIMIT ?
                 `, [ userId , parseInt(limit)]);
 

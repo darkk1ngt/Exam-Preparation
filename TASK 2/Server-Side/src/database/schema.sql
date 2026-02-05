@@ -116,7 +116,7 @@ ON DUPLICATE KEY UPDATE
     ticket_sales = VALUES(ticket_sales),
     uptime_percentage = VALUES(uptime_percentage);
 
--- Insert a demo admin staff account (password: 'TempPassword123!')
+-- Insert a demo admin staff account (password: 'Theadmin123-')
 INSERT INTO users (email, password_hash, role)
-SELECT 'staff@londonzoo.co.uk', '$2b$10$YqZfR.2QYyA7y6tLHHQ6ZuC6vwHQXxGb1XKH6gN6x5nNDHQGQXKWC', 'staff'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'staff@londonzoo.co.uk');
+SELECT 'staff@londonzoo.co.uk', '$2b$10$d8gc9P9VPXg8Yfv.o5ZquOU1GRGtKRuLZwutjMqY/EQ.5M/9fAY6q', 'staff'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'staff@londonzoo_co.uk');
