@@ -119,4 +119,4 @@ ON DUPLICATE KEY UPDATE
 -- Insert a demo admin staff account (password: 'Theadmin123-')
 INSERT INTO users (email, password_hash, role)
 SELECT 'staff@londonzoo.co.uk', '$2b$10$d8gc9P9VPXg8Yfv.o5ZquOU1GRGtKRuLZwutjMqY/EQ.5M/9fAY6q', 'staff'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'staff@londonzoo_co.uk');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'staff@londonzoo.co.uk');
