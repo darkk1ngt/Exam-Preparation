@@ -52,11 +52,11 @@ london-zoo/
 │   ├── rsbuild.config.mjs
 │   └── biome.json
 │
-├── server-side/              # Express backend
+├── Server-Side/              # Express backend
 │   ├── src/
-│   │   ├── server.js         # Main app setup, middleware, routes
+│   │   ├── Server.js         # Main app setup, middleware, routes
 │   │   ├── database/
-│   │   │   ├── connections.js   # MySQL pool
+│   │   │   ├── connection.js   # MySQL pool
 │   │   │   ├── schema.js        # Database initialization
 │   │   │   └── schema.sql       # SQL schema
 │   │   ├── routes/
@@ -110,19 +110,19 @@ Set up Express server with session management, CORS, rate limiting, and database
 ### Files to Create/Modify
 
 ```
-server-side/
+Server-Side/
 ├── package.json          (create)
 ├── .env                  (create)
 ├── src/
-│   ├── server.js        (create)
+│   ├── Server.js        (create)
 │   └── database/
-│       └── connections.js (create)
+│       └── connection.js (create)
 ```
 
 ### Step 1a: Initialize npm & Install Dependencies
 
 ```bash
-cd server-side
+cd Server-Side
 npm init -y
 npm install express express-session cors bcrypt chalk dotenv mysql2 express-rate-limit
 npm install --save-dev nodemon
@@ -165,12 +165,12 @@ FRONTEND_URL=http://localhost:3000
 
 ```json
 {
-  "name": "server-side",
+    "name": "server-side",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "start": "node src/Server.js",
+    "dev": "nodemon src/Server.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -315,7 +315,7 @@ Define the MySQL schema (users, attractions, queue status, notifications, etc.) 
 ### Files to Create
 
 ```
-server-side/src/database/
+Server-Side/src/database/
 ├── schema.sql        (create)
 └── schema.js         (create)
 ```
@@ -603,7 +603,7 @@ export async function initializeDatabase(){
 - Uses `mysql2/promise` to create a direct connection (not from pool) for schema initialization
 - Uses `.query()` with `multipleStatements: true` to execute entire schema.sql file at once
 - Executes the entire schema SQL including CREATE DATABASE and USE statements
-- Called once on server startup in `server.js`
+- Called once on server startup in `Server.js`
 
 **Note:** For production, consider using migrations (e.g., Knex.js or db-migrate).
 
@@ -643,7 +643,7 @@ catch (error) {
 
 **When initializeDatabase() Runs:**
 
-- Called once in `server.js` before starting HTTP listener
+- Called once in `Server.js` before starting HTTP listener
 - **Idempotent:** Safe to run multiple times (thanks to `IF NOT EXISTS` and `WHERE NOT EXISTS` in SQL)
 - **Development workflow:** Restart server → schema recreated automatically
 
@@ -684,13 +684,13 @@ Configure Express, session management, CORS, rate limiting, and error handling.
 ### Files to Create
 
 ```
-server-side/src/
-├── server.js          (create)
+Server-Side/src/
+├── Server.js          (create)
 └── utils/
     └── middleware.js  (create)
 ```
 
-### Step 3a: Create `server.js`
+### Step 3a: Create `Server.js`
 
 ```javascript
 import 'dotenv/config';
@@ -1261,7 +1261,7 @@ Implement user registration, login, logout with password hashing and session man
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── auth.js  (create)
 ```
 
@@ -1703,7 +1703,7 @@ Create endpoints to fetch attractions list and individual attraction details wit
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── attractions.js  (create)
 ```
 
@@ -1711,7 +1711,7 @@ server-side/src/routes/
 
 ```javascript
 import express from 'express';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 import { optionalAuth } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -2044,7 +2044,7 @@ Provide real-time queue information. In production, this would be updated by sta
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── queue.js  (create)
 ```
 
@@ -2052,7 +2052,7 @@ server-side/src/routes/
 
 ```javascript
 import express from 'express';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 import { optionalAuth, requireAuth, requireStaff } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -2204,7 +2204,7 @@ Allow users to subscribe/unsubscribe from alerts and retrieve their notification
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── notifications.js  (create)
 ```
 
@@ -2212,7 +2212,7 @@ server-side/src/routes/
 
 ```javascript
 import express from 'express';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 import { requireAuth } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -2389,7 +2389,7 @@ Calculate estimated distance and time from user's current location to a chosen a
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── navigation.js  (create)
 ```
 
@@ -2397,7 +2397,7 @@ server-side/src/routes/
 
 ```javascript
 import express from 'express';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 import { optionalAuth } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -2749,7 +2749,7 @@ Allow users to view and update their profile and notification preferences.
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── profile.js  (create)
 ```
 
@@ -2757,7 +2757,7 @@ server-side/src/routes/
 
 ```javascript
 import express from 'express';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 import { requireAuth } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -2925,7 +2925,7 @@ Provide endpoints for staff to view performance metrics (ticket sales, uptime, v
 ### Files to Create
 
 ```
-server-side/src/routes/
+Server-Side/src/routes/
 └── staff-metrics.js  (create)
 ```
 
@@ -2933,7 +2933,7 @@ server-side/src/routes/
 
 ```javascript
 import express from 'express';
-import { query } from '../database/connections.js';
+import { query } from '../database/connection.js';
 import { requireAuth, requireStaff } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -3177,7 +3177,7 @@ Verify all endpoints work before moving to frontend.
 **Setup:**
 
 1. Ensure MySQL is running and `.env` is configured
-2. Run `npm install` in `server-side/`
+2. Run `npm install` in `Server-Side/`
 3. Run `npm run dev` (starts on `http://localhost:5000`)
 4. Open Postman or use `curl` / Thunder Client
 
@@ -3513,7 +3513,7 @@ With credentials: 'include': Send cookies (opt-in to this behavior)
 **Must match backend CORS settings:**
 
 ```javascript
-// Backend (server.js)
+// Backend (Server.js)
 cors({
     origin: 'http://localhost:3000',
     credentials: true  // Must be true if frontend uses credentials: 'include'
@@ -5333,12 +5333,12 @@ Create remaining CSS files:
 
 - Node.js 16+ installed
 - MySQL running locally
-- `.env` configured in `server-side/`
+- `.env` configured in `Server-Side/`
 
 ## Start Backend
 
 ```bash
-cd server-side
+cd Server-Side
 npm install
 npm run dev
 ```
@@ -5395,7 +5395,7 @@ Will open `http://localhost:3000` in browser.
 
 | Bug                                      | Cause                                        | Fix                                                    |
 | ---------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
-| "Cannot GET /api/..."                    | Routes not mounted in server.js              | Import and mount route handler in server.js            |
+| "Cannot GET /api/..."                    | Routes not mounted in Server.js              | Import and mount route handler in Server.js            |
 | Cookies not persisting                   | `credentials: 'include'` missing in fetch  | Add to all fetch requests (already in api.js)          |
 | "Forbidden: Staff only" for visitor      | User role not set correctly                  | Check DB: user inserted with `role = 'visitor'`      |
 | No attractions showing                   | SQL query syntax error or DB not initialized | Run `npm run dev` to trigger schema initialization   |
@@ -5443,7 +5443,7 @@ You now have a complete roadmap to build the London Zoo platform. Each step incl
 
 **Next Actions:**
 
-1. Copy backend code into your `/server-side` directory
+1. Copy backend code into your `/Server-Side` directory
 2. Copy frontend code into your `/client-side` directory
 3. Update `.env` with your MySQL credentials
 4. Run both servers and test manually
