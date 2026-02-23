@@ -4,3 +4,5 @@
 // - states(data that changes)
 // - effects(what happens on component loading)
 // 3.Login using states,forms and API calls
+// 4.Register page 
+// 5.Auth Context for consistent user login across all pages ( updating login and registration endpoints )

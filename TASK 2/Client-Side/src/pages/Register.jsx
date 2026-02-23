@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Register(){
     const [ email , setEmail ] = useState('');
     const [ password , setPassword ] = useState('');
-    const [ displayPassword , SetdisplayPassword ] = useState(false);
     const [ loading , setLoading ] = useState(false);
     const [ error , setError ] = useState('');
+
+    const { register } = useAuth();
 
     const handleSubmit = async(event) =>{
         event.preventDefault();
@@ -14,24 +16,16 @@ export default function Register(){
         setLoading(true);
 
         try{
-            const response = await fetch('http://localhost:5000/api/auth/register',{
-                method : 'POST',
-                headers : {
-                    'Content-Type' : 'application/json',
-                },
-                credentials : "include",
-                body : JSON.stringify({ email , password })
-
-            });
-
-            const data = await response.json();
-            if( response.ok ){
-                console.log(`Registration Successful!`,data);
+           const result = await register( email , password);
+            if( result.success ){
+                console.log(`Registration Successful!`, result.data);
+                setEmail('');
+                setPassword('');
             }else{
-                setError(data.error || 'Registration failed.')
+                setError(result.error || 'Registration failed.')
             }
         }catch(error){
-            setError('Something is wrong')
+            setError('Something went wrong')
         }finally{
             setLoading(false);
         }
@@ -58,7 +52,7 @@ export default function Register(){
             />
             </div>
             <button type="submit" disabled={loading}>
-                {loading ? 'Registering Userr...' : 'Register'}
+                {loading ? 'Registering User...' : 'Register'}
             </button>
             {error && <p style={{color:'red'}}>{error}</p>}
         </form>

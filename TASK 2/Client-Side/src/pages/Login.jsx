@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login(){
     const [ email , setEmail ] = useState('');
     const [ password , setPassword ] = useState('');
     const [ loading , setLoading ] = useState(false);
     const [ error , setError ] = useState('');
+
+    const { login } = useAuth();
 
     const handleSubmit = async( event )=>{
         event.preventDefault();
@@ -13,24 +16,16 @@ export default function Login(){
         setLoading(true);
 
         try{
-            const response = await fetch('http://localhost:5000/api/auth/login',{
-                method : 'POST',
-                headers : {
-                    'Content-Type' : 'application/json',
-                },
-                credentials : 'include',
-                body : JSON.stringify({ email , password })
-
-            });
-
-            const data = await response.json();
-            if( response.ok ){
-                console.log(`Login successful!`,data);
+            const result = await login( email , password );
+            if( result.success ){
+                console.log(`Login successful!`,result.data);
+                setEmail('');
+                setPassword('');
             }else{
-                setError(data.error || 'Login failed.');
+                setError(result.error || 'Login failed.');
             }
         }catch(err){
-            setError('Something is wrong')
+            setError('Something went wrong')
         }finally{
             setLoading(false);
         }
