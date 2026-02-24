@@ -127,4 +127,41 @@ router.get('/' , optionalAuth , async( request , response )=>{
     }
 });
 
+/* Join a queue */
+router.post('/:attractionId/join' , requireAuth , async ( request , response )=>{
+    try{
+        const { attractionId } = request.params;
+
+        if( isNaN( attractionId ) || attractionId <=0 ){
+            return response.status(400).json({
+                error : 'Invalid attraction ID.'
+            });
+        }
+
+        /* Increment queue length +1 */
+        await query(`
+            UPDATE queue_status
+            SET queue_length = queue_length + 1,
+                estimated_wait_minutes = (queue_length + 1) * 5
+            WHERE attraction_id = ?`,
+        [attractionId]);
+
+        /* Retrive updated queue information */
+
+        const updated = await query(`
+            SELECT * FROM queue_status WHERE attraction_id = ?`,
+        [attractionId]);
+
+        response.json({
+            message : 'Successfully joined queue',
+            queue : updated[0]
+        });
+    }catch( error ){
+        console.error(`Error joing queue:${error.message}`)
+        response.status(500).json({
+            error : 'Failed to join queue'
+        })
+    }
+})
+
 export default router;

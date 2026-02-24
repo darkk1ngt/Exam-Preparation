@@ -6,3 +6,4 @@
 // 3.Login using states,forms and API calls
 // 4.Register page 
 // 5.Auth Context for consistent user login across all pages ( updating login and registration endpoints )
+// 6. React-Router-Dom for individual page routing and added a protected pathway  

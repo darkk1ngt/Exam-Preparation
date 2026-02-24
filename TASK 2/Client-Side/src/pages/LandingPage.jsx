@@ -10,14 +10,17 @@ export default function LandingPage(){
             <p>Your digital zoo experience.</p>
             { user ? (
                 <div>
-                    <p>You are logged in as { user.email }</p>
-                    <Link to='/login'>
-                    <button>Login</button>
+                    <p>You are logged in as {user.email}</p>
+                    <Link to='/dashboard'>
+                    <button>Go to Dashboard</button>
                     </Link>
                 </div>
             ):(
                 <div>
-                    <Link to='register'>
+                    <Link to='/login'>
+                    <button>Login</button>
+                    </Link>
+                    <Link to='/register'>
                     <button>Register</button>
                     </Link>
                 </div>

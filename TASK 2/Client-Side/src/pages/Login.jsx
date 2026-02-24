@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useNavigate } from "react-router-dom";
 
 export default function Login(){
+    const navigate = useNavigate();
     const [ email , setEmail ] = useState('');
     const [ password , setPassword ] = useState('');
     const [ loading , setLoading ] = useState(false);
@@ -19,6 +21,7 @@ export default function Login(){
             const result = await login( email , password );
             if( result.success ){
                 console.log(`Login successful!`,result.data);
+                navigate('/dashboard');
                 setEmail('');
                 setPassword('');
             }else{

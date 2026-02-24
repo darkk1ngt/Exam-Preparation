@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useNavigate } from "react-router-dom";
 
 export default function Register(){
+    const navigate = useNavigate();
     const [ email , setEmail ] = useState('');
     const [ password , setPassword ] = useState('');
     const [ loading , setLoading ] = useState(false);
@@ -19,6 +21,7 @@ export default function Register(){
            const result = await register( email , password);
             if( result.success ){
                 console.log(`Registration Successful!`, result.data);
+                navigate('/dashboard');
                 setEmail('');
                 setPassword('');
             }else{
