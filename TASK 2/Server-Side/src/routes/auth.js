@@ -56,11 +56,28 @@ router.post( '/register' , async ( request , response )=>{
 
         console.log(chalk.green(`New user registered:${email}`));
 
+        const users = await query(
+            'SELECT id,email,password_hash,role FROM users WHERE email = ?',
+            [email]
+        );
+
+        if( users.length === 0 ){
+            return response.status(401).json({
+                error : 'Something went wrong while attempting to auto-login.'
+            });
+        }
+
+        const user = users[0];
+
+        request.session.userId = user.id; 
+        request.session.email = user.email;
+        request.session.role = user.role;
+
         response.status(201).json({
             message : 'Registration successful.',
             user : {
                 id : result.insertId,
-                email : email,
+                email : email, 
                 role : 'visitor'
             }
         });

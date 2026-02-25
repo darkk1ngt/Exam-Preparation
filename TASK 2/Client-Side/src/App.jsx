@@ -1,6 +1,6 @@
 import './App.css';
 import { AuthProvider , useAuth } from './context/AuthContext.jsx';
-import { BrowserRouter , Route , Routes , Navigate } from 'react-router-dom';
+import { BrowserRouter , Route , Routes , Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -8,14 +8,21 @@ import Attractions from './pages/Attractions.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import NavigationBar from './components/NavigationBar.jsx';
+import { useEffect } from 'react';
 
 
 function AppContent(){
-  const { loading } = useAuth();
+  const { loading, checkAuth } = useAuth();
 
   if( loading ){
     return<div>Loading...</div>
   }
+
+  const location = useLocation()
+
+  useEffect(() => {
+    checkAuth()
+  }, [location])
 
   return(
     <>
