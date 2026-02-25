@@ -1,4 +1,5 @@
-import { createContext , useState , useContext , useEffect } from "react";
+import { createContext , useState , useContext , useEffect , useCallback } from "react";
+import config from '../config.js';
 
 const AuthContext = createContext(null);
 
@@ -6,24 +7,21 @@ export function AuthProvider({ children }){
     const [ user , setUser ] = useState(null);
     const [ loading , setLoading] = useState(true);
 
-    /* check if user is already logged in on mount */
-    useEffect(() =>{
-        checkAuth()
-    },[]);
-
-    const checkAuth = async () => {
+    const checkAuth = useCallback(async () => {
         try{
-            const response = await fetch('http://localhost:5000/api/auth/status',{
+            const response = await fetch(`${config.apiUrl}/api/auth/status`,{
                 credentials : "include"
             });
-            if( response.ok ){
-                const data = await response.json();
-                if (data.isAuthenticated) {
-                    setUser(data.user);
-                } else {
-                    setUser(null);
-                }
-            }else{
+            
+            if (!response.ok) {
+                throw new Error('Auth check failed');
+            }
+            
+            const data = await response.json();
+            
+            if (data.isAuthenticated) {
+                setUser(data.user);
+            } else {
                 setUser(null);
             }
         }catch ( error ){
@@ -32,10 +30,16 @@ export function AuthProvider({ children }){
         }finally{
             setLoading(false);
         }
-    };
+    }, []);
+
+    /* check if user is already logged in on mount */
+    
+    useEffect(() =>{
+        checkAuth()
+    },[checkAuth]);
 
     const login = async ( email , password )=>{
-        const response = await fetch('http://localhost:5000/api/auth/login',{
+        const response = await fetch(`${config.apiUrl}/api/auth/login`,{
             method : 'POST',
             headers : {
                 'Content-Type' : 'application/json',
@@ -55,7 +59,7 @@ export function AuthProvider({ children }){
     };
 
     const register = async ( email , password )=>{
-        const response = await fetch('http://localhost:5000/api/auth/register',{
+        const response = await fetch(`${config.apiUrl}/api/auth/register`,{
             method : 'POST',
             headers : {
                 'Content-Type' : 'application/json',
@@ -76,7 +80,7 @@ export function AuthProvider({ children }){
 
     const logout = async () =>{
         try{
-            await fetch('http://localhost:5000/api/auth/logout',{
+            await fetch(`${config.apiUrl}/api/auth/logout`,{
                 method : 'POST',
                 credentials : 'include'
             });

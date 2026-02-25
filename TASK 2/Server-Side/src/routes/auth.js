@@ -1,4 +1,4 @@
-import express, { request, response } from 'express';
+import express from 'express';
 import bcrypt from 'bcrypt';
 import chalk from 'chalk';
 import { query } from '../database/connection.js';
@@ -56,22 +56,10 @@ router.post( '/register' , async ( request , response )=>{
 
         console.log(chalk.green(`New user registered:${email}`));
 
-        const users = await query(
-            'SELECT id,email,password_hash,role FROM users WHERE email = ?',
-            [email]
-        );
-
-        if( users.length === 0 ){
-            return response.status(401).json({
-                error : 'Something went wrong while attempting to auto-login.'
-            });
-        }
-
-        const user = users[0];
-
-        request.session.userId = user.id; 
-        request.session.email = user.email;
-        request.session.role = user.role;
+        /* Create session directly using insert result */
+        request.session.userId = result.insertId;
+        request.session.email = email;
+        request.session.role = 'visitor';
 
         response.status(201).json({
             message : 'Registration successful.',
@@ -179,7 +167,7 @@ router.get('/status', ( request , response )=>{
         });
     }
     response.json({
-        isAuthenticated : 'False'
+        isAuthenticated : false
     });
 });
 

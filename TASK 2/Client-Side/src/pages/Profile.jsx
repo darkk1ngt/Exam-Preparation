@@ -1,4 +1,4 @@
-import { useState , useEffect, use } from "react";
+import { useState , useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Profile(){
@@ -21,7 +21,7 @@ export default function Profile(){
 
     const fetchProfile = async ()=> {
         try{
-            const response = await fetch('http://localhost:5000/api/profile',{
+            const response = await fetch(`${config.apiUrl}/api/profile`,{
                 credentials : 'include'
             });
 
@@ -50,7 +50,7 @@ export default function Profile(){
         setMessage('');
 
         try{
-            const response = await fetch('http://localhost:5000/api/profile/preferences',{
+            const response = await fetch(`${config.apiUrl}/api/profile/preferences`,{
                 method : 'PATCH',
                 headers : {
                     'Content-Type' : 'application/json'
@@ -100,22 +100,50 @@ export default function Profile(){
                     </label>
                 </div>
 
-                <div>
-
+                <div style={{marginBottom : '15px'}}>
+                    <label>
+                        Preferred Attractions (comma-separated):
+                        <input
+                            type="text"
+                            value={preferences.preferred_attractions}
+                            onChange={(e) => setPreferences({
+                                ...preferences,
+                                preferred_attractions: e.target.value
+                            })}
+                            placeholder="e.g. African Savanna, Penguin Pool"
+                            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                        />
+                    </label>
                 </div>
-                <div>
 
+                <div style={{marginBottom : '15px'}}>
+                    <label>
+                        Distance Alert Threshold (meters):
+                        <input
+                            type="number"
+                            value={preferences.distance_alert_threshold}
+                            onChange={(e) => setPreferences({
+                                ...preferences,
+                                distance_alert_threshold: parseInt(e.target.value) || 500
+                            })}
+                            min="0"
+                            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                        />
+                    </label>
                 </div>
-                <button>
-                    {message && (
-                        <p style={{
-                            marginTop : '10px',
-                            color : message.includes('success') ? 'green' : 'red'
-                        }}>
 
-                        </p>
-                    )}
+                <button type="submit" disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Preferences'}
                 </button>
+
+                {message && (
+                    <p style={{
+                        marginTop : '10px',
+                        color : message.includes('success') ? 'green' : 'red'
+                    }}>
+                        {message}
+                    </p>
+                )}
             </form>
 
         </div>

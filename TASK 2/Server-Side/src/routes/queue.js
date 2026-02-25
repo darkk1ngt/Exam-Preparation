@@ -106,7 +106,7 @@ router.get('/' , optionalAuth , async( request , response )=>{
             `SELECT 
             qs.id,
             qs.attraction_id,
-            qs.name as attraction_name,
+            a.name as attraction_name,
             qs.queue_length,
             qs.estimated_wait_minutes,
             qs.last_updated

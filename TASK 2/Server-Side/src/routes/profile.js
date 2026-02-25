@@ -1,4 +1,4 @@
-import express, { request, response } from 'express';
+import express from 'express';
 import { query } from '../database/connection.js';
 import { requireAuth } from '../utils/middleware.js';
 

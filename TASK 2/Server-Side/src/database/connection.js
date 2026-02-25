@@ -1,14 +1,18 @@
 import mysql from 'mysql2/promise';
 import chalk from 'chalk';
 
-const initialPool = mysql.createPool({
-    host : process.env.DB_HOST,
-    user : process.env.DB_USER,
-    password : process.env.DB_PASSWORD,
-    waitForConnections : true,
-    connectionLimit : 10,
-    queueLimit : 0
-});
+const poolConfig = {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    connectTimeout: 10000,
+    acquireTimeout: 10000
+};
+
+const initialPool = mysql.createPool(poolConfig);
 
 let pool;
 
@@ -20,13 +24,8 @@ export async function initializeConnection(){
         console.log(chalk.white(`Database created or already exists.`));
         
         pool = mysql.createPool({
-            host : process.env.DB_HOST,
-            user : process.env.DB_USER,
-            password : process.env.DB_PASSWORD,
-            database : process.env.DB_NAME,
-            waitForConnections : true,
-            connectionLimit : 10,
-            queueLimit : 0
+            ...poolConfig,
+            database: process.env.DB_NAME
         });
     }catch( error ){
         console.error(chalk.red(`Failed to initialize connection: ${error.message}`));
@@ -49,8 +48,7 @@ export async function query(sql,values=[]){
 
 export async function testConnection(){
     try{
-        const connection = await pool.getConnection();
-        connection.release();
+        await pool.query('SELECT 1');
         console.log(chalk.grey(`Database connected successfully.`));
         return true;
     }catch( error ){

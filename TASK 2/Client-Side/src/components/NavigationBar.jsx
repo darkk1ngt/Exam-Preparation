@@ -6,7 +6,7 @@ export default function NavigationBar(){
     return(
         <nav style={{
             padding : '15px',
-            backgroundColor : '#2c3e50',
+            backgroundColor : '#305e3a',
             color : 'white',
             marginBottom : '20px'
         }}>

@@ -8,6 +8,7 @@ import Attractions from './pages/Attractions.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import NavigationBar from './components/NavigationBar.jsx';
+import Footer from './components/Footer.jsx';
 import { useEffect } from 'react';
 
 
@@ -22,7 +23,7 @@ function AppContent(){
 
   useEffect(() => {
     checkAuth()
-  }, [location])
+  }, [location, checkAuth])
 
   return(
     <>
@@ -40,6 +41,7 @@ function AppContent(){
         </ProtectedRoute>
       }/>
     </Routes>
+    <Footer/>
     </>
   )
 }

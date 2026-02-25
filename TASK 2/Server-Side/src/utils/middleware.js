@@ -11,7 +11,7 @@ export function requireAuth( request , response , next ){
     }
 
     request.userId = request.session.userId;
-    request.userRole = request.session.userRole;
+    request.userRole = request.session.role;
     next();
 }
 
@@ -30,7 +30,7 @@ export function requireStaff( request , response , next ){
 export function optionalAuth( request , response , next ){
     if(request.session && request.session.userId){
         request.userId = request.session.userId;
-        request.userRole = request.session.userRole;
+        request.userRole = request.session.role;
     }
     next();
 }

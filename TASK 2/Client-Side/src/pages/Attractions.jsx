@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import LoadingSpinner from '../components/LoadingSpinner';
+import config from '../config';
 
 export default function Attractions(){
 
@@ -12,7 +14,7 @@ export default function Attractions(){
 
     const fetchAttractions = async()=>{
         try {
-            const response = await fetch('http://localhost:5000/api/attractions',{
+            const response = await fetch(`${config.apiUrl}/api/attractions`,{
                 credentials : 'include'
             });
 
@@ -30,7 +32,7 @@ export default function Attractions(){
     };
 
     if( loading ){
-        return<div>Loading Attractions...</div>
+        return <LoadingSpinner message="Loading attractions..." />
     }
     
     if( error ){
@@ -39,7 +41,7 @@ export default function Attractions(){
 
     const handleJoinQueue = async(attractionId , attractionName) => {
         try{
-            const response = await fetch(`http://localhost:5000/api/queue/${attractionId}/join`,{
+            const response = await fetch(`${config.apiUrl}/api/queue/${attractionId}/join`,{
                 method : 'POST',
                 credentials : 'include'
             });
