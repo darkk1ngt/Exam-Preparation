@@ -9,6 +9,8 @@ import LandingPage from './pages/LandingPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import NavigationBar from './components/NavigationBar.jsx';
 import Footer from './components/Footer.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import LoadingSpinner from './components/LoadingSpinner.jsx';
 import { useEffect } from 'react';
 
 
@@ -16,7 +18,7 @@ function AppContent(){
   const { loading, checkAuth } = useAuth();
 
   if( loading ){
-    return<div>Loading...</div>
+    return <LoadingSpinner message="Loading..." />
   }
 
   const location = useLocation()
@@ -28,19 +30,21 @@ function AppContent(){
   return(
     <>
     <NavigationBar/>
-    <Routes>
-      <Route path='/Attractions' element={<Attractions/>}/>
-      <Route path='/' element={<LandingPage/>}/>
-      <Route path='/login' element={<Login/>}/>
-      <Route path='/register' element={<Register/>}/>
-      <Route
-      path='/dashboard'
-      element={
-        <ProtectedRoute>
-          <Dashboard/>
-        </ProtectedRoute>
-      }/>
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path='/Attractions' element={<Attractions/>}/>
+        <Route path='/' element={<LandingPage/>}/>
+        <Route path='/login' element={<Login/>}/>
+        <Route path='/register' element={<Register/>}/>
+        <Route
+        path='/dashboard'
+        element={
+          <ProtectedRoute>
+            <Dashboard/>
+          </ProtectedRoute>
+        }/>
+      </Routes>
+    </ErrorBoundary>
     <Footer/>
     </>
   )
