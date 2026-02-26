@@ -78,7 +78,7 @@ export default function Profile(){
     return(
         <div style={{ maxWidth : '600px' , margin : '0 auto' , padding : '20px'}}>
             <h1>User Profile</h1>
-            <div style={{ marginBottom : '30px' , padding : '15px' , backgroundColor : '#f5f5f5' , borderRadius : '8px' }}>
+            <div style={{ marginBottom : '30px' , padding : '15px' , backgroundColor : '#305e3a' , borderRadius : '8px' }}>
                 <h2>Account Information</h2>
                 <p><strong>Email:</strong>{ profile?.email }</p>
                 <p><strong>Role:</strong>{ profile?.role }</p>

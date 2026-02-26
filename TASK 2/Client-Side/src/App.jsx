@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import NavigationBar from './components/NavigationBar.jsx';
 import Footer from './components/Footer.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import Profile from './pages/Profile.jsx'
 import LoadingSpinner from './components/LoadingSpinner.jsx';
 import { useEffect } from 'react';
 
@@ -28,30 +29,31 @@ function AppContent(){
   }, [location, checkAuth])
 
   return(
-    <>
+    <div className='app-wrapper'>
     <NavigationBar/>
+    <main className='main-content'>
     <ErrorBoundary>
       <Routes>
         <Route path='/Attractions' element={<Attractions/>}/>
         <Route path='/' element={<LandingPage/>}/>
         <Route path='/login' element={<Login/>}/>
         <Route path='/register' element={<Register/>}/>
-        <Route
-        path='/dashboard'
-        element={
+        <Route path='/profile'element={<Profile/>}></Route>
+        <Route path='/dashboard'element={
           <ProtectedRoute>
             <Dashboard/>
           </ProtectedRoute>
         }/>
       </Routes>
     </ErrorBoundary>
+    </main>
     <Footer/>
-    </>
+    </div>
   )
 }
 export default function App(){
   return (
-    <AuthProvider>
+      <AuthProvider>
       <BrowserRouter>
       <AppContent />
       </BrowserRouter>
