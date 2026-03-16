@@ -5,25 +5,17 @@ const SALT_ROUNDS = 10;
 
  export default async function seed() {
 
-  // Check if already seeded — skip if admin exists
-  const existing = await query(
-    `SELECT id FROM users WHERE email = 'admin@glh.co.uk' LIMIT 1`
-  );
-
-  if (existing.length > 0) {
-    console.log('Database already seeded — skipping');
-    return;
-  }
-
   console.log('Seeding database...');
 
   // ── 1. ADMIN ────────────────────────────────────────────────────────────
   const adminHash = await bcrypt.hash('Admin123!', SALT_ROUNDS);
 
-  await query(`
-    INSERT INTO users (email, password_hash, role, email_verified)
-    VALUES ('admin@glh.co.uk', ?, 'admin', TRUE)
-  `, [adminHash]);
+  await query(
+    `INSERT INTO users (email, password_hash, role, email_verified)
+     VALUES ('admin@glh.co.uk', ?, 'admin', TRUE)
+     ON DUPLICATE KEY UPDATE role = VALUES(role), email_verified = VALUES(email_verified)`,
+    [adminHash],
+  );
 
   console.log('✔ Admin seeded');
 
@@ -42,12 +34,19 @@ const SALT_ROUNDS = 10;
   ];
 
   for (const p of producers) {
-    await query(`
-      INSERT INTO users
-        (email, password_hash, role, farm_name, contact_number,
-         email_verified, producer_status)
-      VALUES (?, ?, 'producer', ?, ?, TRUE, 'approved')
-    `, [p.email, producerHash, p.farm, p.contact]);
+    await query(
+      `INSERT INTO users
+         (email, password_hash, role, farm_name, contact_number,
+          email_verified, producer_status)
+       VALUES (?, ?, 'producer', ?, ?, TRUE, 'approved')
+       ON DUPLICATE KEY UPDATE
+         role = 'producer',
+         farm_name = VALUES(farm_name),
+         contact_number = VALUES(contact_number),
+         email_verified = TRUE,
+         producer_status = 'approved'`,
+      [p.email, producerHash, p.farm, p.contact],
+    );
   }
 
   console.log('✔ Producers seeded');
@@ -56,7 +55,7 @@ const SALT_ROUNDS = 10;
   // Fetch producer IDs dynamically — query() returns results directly
   const rows = await query(`
     SELECT id, farm_name FROM users
-    WHERE role = 'producer'
+    WHERE farm_name IS NOT NULL
     ORDER BY id ASC
   `);
 
@@ -116,11 +115,19 @@ const SALT_ROUNDS = 10;
       continue;
     }
 
-    await query(`
-      INSERT INTO products
-        (producer_id, name, description, category, price, stock_quantity, is_available)
-      VALUES (?, ?, ?, ?, ?, ?, TRUE)
-    `, [producerId, p.name, p.description, p.category, p.price, p.stock]);
+    const existingProduct = await query(
+      `SELECT id FROM products WHERE producer_id = ? AND name = ? LIMIT 1`,
+      [producerId, p.name],
+    );
+
+    if (existingProduct.length === 0) {
+      await query(
+        `INSERT INTO products
+           (producer_id, name, description, category, price, stock_quantity, is_available)
+         VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
+        [producerId, p.name, p.description, p.category, p.price, p.stock],
+      );
+    }
   }
 
   console.log('✔ Products seeded');
@@ -142,10 +149,12 @@ const SALT_ROUNDS = 10;
   ];
 
   for (const s of slots) {
-    await query(`
-      INSERT INTO collection_slots (slot_date, slot_time, max_capacity)
-      VALUES (?, ?, 10)
-    `, [s.date, s.time]);
+    await query(
+      `INSERT INTO collection_slots (slot_date, slot_time, max_capacity)
+       VALUES (?, ?, 10)
+       ON DUPLICATE KEY UPDATE max_capacity = VALUES(max_capacity)`,
+      [s.date, s.time],
+    );
   }
 
   console.log('✔ Collection slots seeded');

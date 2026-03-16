@@ -21,6 +21,7 @@ router.get('/' , requireAuth , async( request , response )=>{
                 `INSERT INTO loyalty (customer_id) VALUES (?)`,
                 [userId]
             );
+            const history = [];
             return response.json({
                 loyalty : {
                     points_balance : 0,
@@ -28,11 +29,28 @@ router.get('/' , requireAuth , async( request , response )=>{
                     discount_active : false,
                     discount_value : 10.00,
                     points_rate : 1.00
-                }
+                },
+                history
             });
         }
 
-        response.json({ loyalty : rows[0] });
+        const loyalty = rows[0];
+        const history = await query(
+            `SELECT
+                o.id AS order_id,
+                o.status,
+                o.total_price,
+                o.discount_applied,
+                o.created_at,
+                FLOOR(o.total_price * ?) AS points_earned
+             FROM orders o
+             WHERE o.customer_id = ?
+               AND o.status IN ('collected', 'delivered')
+             ORDER BY o.created_at DESC`,
+            [loyalty.points_rate, userId]
+        );
+
+        response.json({ loyalty , history });
     }catch( error ){
         console.error(`Error fetching loyalty: ${error.message}`);
         response.status(500).json({ error : 'Failed to fetch loyalty data.' });

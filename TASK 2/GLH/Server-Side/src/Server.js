@@ -16,6 +16,7 @@ import slotsRoutes from './routes/slots.js';
 import loyaltyRoutes from './routes/loyalty.js';
 import notificationsRoutes from './routes/notifications.js';
 import profileRoutes from './routes/profile.js';
+import accountRoutes from './routes/account.js';
 import dashboardRoutes from './routes/dashboard.js';
 import adminRoutes from './routes/admin.js';
 
@@ -116,6 +117,7 @@ app.use('/api/slots', slotsRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/account', accountRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 

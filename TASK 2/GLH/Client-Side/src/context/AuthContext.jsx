@@ -7,6 +7,19 @@ export function AuthProvider({ children }){
     const [ user , setUser ] = useState(null);
     const [ loading , setLoading] = useState(true);
 
+    const fetchProfile = useCallback(async () => {
+        const response = await fetch(`${config.apiUrl}/api/profile`, {
+            credentials : 'include'
+        });
+
+        if( !response.ok ){
+            return null;
+        }
+
+        const data = await response.json();
+        return data.user ?? null;
+    }, []);
+
     const checkAuth = useCallback(async () => {
         try{
             const response = await fetch(`${config.apiUrl}/api/auth/status`,{
@@ -20,7 +33,11 @@ export function AuthProvider({ children }){
             const data = await response.json();
             
             if (data.isAuthenticated) {
-                setUser(data.user);
+                const profile = await fetchProfile();
+                setUser({
+                    ...data.user,
+                    ...(profile ?? {})
+                });
             } else {
                 setUser(null);
             }
@@ -30,7 +47,7 @@ export function AuthProvider({ children }){
         }finally{
             setLoading(false);
         }
-    }, []);
+    }, [fetchProfile]);
 
     /* check if user is already logged in on mount */
     
@@ -51,27 +68,35 @@ export function AuthProvider({ children }){
         const data = await response.json();
 
         if( response.ok ){
-            setUser(data.user);
+            const profile = await fetchProfile();
+            setUser({
+                ...data.user,
+                ...(profile ?? {})
+            });
             return{ success : true , data };
         }else{
             return { success : false , error : data.error || 'Login failed.'}
         }
     };
 
-    const register = async ( email , password )=>{
+    const register = async ( registration_payload )=>{
         const response = await fetch(`${config.apiUrl}/api/auth/register`,{
             method : 'POST',
             headers : {
                 'Content-Type' : 'application/json',
             },
             credentials : 'include',
-            body : JSON.stringify({ email , password })
+            body : JSON.stringify(registration_payload)
         });
 
         const data = await response.json();
 
         if( response.ok ){
-            setUser(data.user);
+            const profile = await fetchProfile();
+            setUser({
+                ...data.user,
+                ...(profile ?? {})
+            });
             return{ success : true , data };
         }else{
             return { success : false , error : data.error || 'Registration failed.'}
@@ -97,7 +122,8 @@ export function AuthProvider({ children }){
         login,
         register,
         logout,
-        checkAuth
+        checkAuth,
+        refreshProfile : checkAuth
     };
 
     return(

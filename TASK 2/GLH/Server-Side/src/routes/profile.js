@@ -11,7 +11,9 @@ router.get('/' , requireAuth , async( request , response )=>{
         const userId = request.userId;
 
         const users = await query(
-            `SELECT id , email , role , farm_name , contact_number , created_at FROM users WHERE id = ?`,
+            `SELECT id , email , role , farm_name , contact_number ,
+             email_verified , producer_status , created_at , updated_at
+             FROM users WHERE id = ?`,
             [userId]
         );
 
@@ -64,9 +66,16 @@ router.patch('/' , requireAuth , async( request , response )=>{
         );
 
         const updated = await query(
-            `SELECT id , email , role , farm_name , contact_number , created_at FROM users WHERE id = ?`,
+            `SELECT id , email , role , farm_name , contact_number ,
+             email_verified , producer_status , created_at , updated_at
+             FROM users WHERE id = ?`,
             [userId]
         );
+
+        request.session.farm_name = updated[0].farm_name;
+        request.session.contact_number = updated[0].contact_number;
+        request.session.email_verified = Boolean(updated[0].email_verified);
+        request.session.producer_status = updated[0].producer_status;
 
         response.json({ message : 'Profile updated.', user : updated[0] });
     }catch( error ){

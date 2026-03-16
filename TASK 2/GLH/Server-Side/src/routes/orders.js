@@ -35,29 +35,32 @@ router.get('/' , requireAuth , async( request , response )=>{
 router.get('/:id' , requireAuth , async( request , response )=>{
     try{
         const { id } = request.params;
+        const isAdmin = request.userRole === 'admin';
 
         if( isNaN(id) ){
             return response.status(400).json({ error : 'Invalid order ID.' });
         }
 
-        const orders = await query(
-            `SELECT o.* , cs.slot_date , cs.slot_time
-             FROM orders o
-             LEFT JOIN collection_slots cs ON o.collection_slot_id = cs.id
-             WHERE o.id = ?`,
-            [id]
-        );
+        const orderSql = isAdmin
+            ? `SELECT o.* , cs.slot_date , cs.slot_time
+               FROM orders o
+               LEFT JOIN collection_slots cs ON o.collection_slot_id = cs.id
+               WHERE o.id = ?`
+            : `SELECT o.* , cs.slot_date , cs.slot_time
+               FROM orders o
+               LEFT JOIN collection_slots cs ON o.collection_slot_id = cs.id
+               WHERE o.id = ? AND o.customer_id = ?`;
+
+        const orderParams = isAdmin ? [id] : [id , request.userId];
+        const orders = await query(orderSql , orderParams);
 
         if( orders.length === 0 ){
-            return response.status(404).json({ error : 'Order not found.' });
+            return response.status(isAdmin ? 404 : 403).json({
+                error : isAdmin ? 'Order not found.' : 'Access denied.'
+            });
         }
 
         const order = orders[0];
-
-        /* Customers can only view their own orders */
-        if( request.userRole !== 'admin' && order.customer_id !== request.userId ){
-            return response.status(403).json({ error : 'Access denied.' });
-        }
 
         const items = await query(
             `SELECT oi.id , oi.product_id , oi.product_name_snapshot ,
@@ -67,7 +70,15 @@ router.get('/:id' , requireAuth , async( request , response )=>{
             [id]
         );
 
-        response.json({ order , items });
+        const orderNotifications = await query(
+            `SELECT id , message , is_read , created_at
+             FROM notifications
+             WHERE customer_id = ? AND order_id = ? AND type = 'order_update'
+             ORDER BY created_at DESC`,
+            [order.customer_id , id]
+        );
+
+        response.json({ order , items , order_notifications : orderNotifications });
     }catch( error ){
         console.error(`Error fetching order: ${error.message}`);
         response.status(500).json({ error : 'Failed to fetch order.' });
@@ -134,7 +145,7 @@ router.post('/' , requireAuth , async( request , response )=>{
 
         /* Fetch loyalty for discount */
         const loyaltyRows = await query(
-            `SELECT points_balance , discount_active , discount_value , points_rate
+            `SELECT points_balance , discount_active , discount_value , points_rate , discount_threshold
              FROM loyalty WHERE customer_id = ?`,
             [userId]
         );
@@ -186,10 +197,9 @@ router.post('/' , requireAuth , async( request , response )=>{
 
         /* Award / reset loyalty points */
         if( loyalty ){
-            const pointsEarned = Math.floor(subtotal * parseFloat(loyalty.points_rate));
-            const newBalance = discountApplied > 0
-                ? pointsEarned  /* reset after using discount */
-                : loyalty.points_balance + pointsEarned;
+            const pointsEarned = Math.floor(parseFloat(totalPrice) * parseFloat(loyalty.points_rate));
+            const baseBalance = discountApplied > 0 ? 0 : Number(loyalty.points_balance);
+            const newBalance = baseBalance + pointsEarned;
             const newDiscountActive = newBalance >= loyalty.discount_threshold;
             await query(
                 `UPDATE loyalty SET points_balance = ? , discount_active = ? WHERE customer_id = ?`,
@@ -197,7 +207,7 @@ router.post('/' , requireAuth , async( request , response )=>{
             );
         } else {
             /* Create loyalty record for first-time orderers */
-            const pointsEarned = Math.floor(subtotal);
+            const pointsEarned = Math.floor(parseFloat(totalPrice));
             await query(
                 `INSERT INTO loyalty (customer_id , points_balance) VALUES (? , ?)`,
                 [userId , pointsEarned]
@@ -261,25 +271,26 @@ router.patch('/:id/status' , requireAuth , requireAdmin , async( request , respo
 router.delete('/:id' , requireAuth , async( request , response )=>{
     try{
         const { id } = request.params;
+        const isAdmin = request.userRole === 'admin';
 
         if( isNaN(id) ){
             return response.status(400).json({ error : 'Invalid order ID.' });
         }
 
-        const orders = await query(
-            `SELECT id , customer_id , status , collection_slot_id FROM orders WHERE id = ?`,
-            [id]
-        );
+        const ownershipSql = isAdmin
+            ? `SELECT id , customer_id , status , collection_slot_id FROM orders WHERE id = ?`
+            : `SELECT id , customer_id , status , collection_slot_id
+               FROM orders WHERE id = ? AND customer_id = ?`;
+        const ownershipParams = isAdmin ? [id] : [id , request.userId];
+        const orders = await query(ownershipSql , ownershipParams);
 
         if( orders.length === 0 ){
-            return response.status(404).json({ error : 'Order not found.' });
+            return response.status(isAdmin ? 404 : 403).json({
+                error : isAdmin ? 'Order not found.' : 'Access denied.'
+            });
         }
 
         const order = orders[0];
-
-        if( request.userRole !== 'admin' && order.customer_id !== request.userId ){
-            return response.status(403).json({ error : 'Access denied.' });
-        }
 
         if( order.status !== 'pending' ){
             return response.status(409).json({ error : 'Only pending orders can be cancelled.' });
@@ -305,7 +316,23 @@ router.delete('/:id' , requireAuth , async( request , response )=>{
             );
         }
 
-        await query(`UPDATE orders SET status = 'cancelled' WHERE id = ?` , [id]);
+        const cancelSql = isAdmin
+            ? `UPDATE orders SET status = 'cancelled' WHERE id = ? AND status = 'pending'`
+            : `UPDATE orders
+               SET status = 'cancelled'
+               WHERE id = ? AND customer_id = ? AND status = 'pending'`;
+        const cancelParams = isAdmin ? [id] : [id , request.userId];
+
+        const cancelResult = await query(cancelSql , cancelParams);
+        if( cancelResult.affectedRows === 0 ){
+            return response.status(409).json({ error : 'Order can no longer be cancelled.' });
+        }
+
+        await query(
+            `INSERT INTO notifications (customer_id , order_id , type , message)
+             VALUES (? , ? , 'order_update' , ?)`,
+            [order.customer_id , id , `Your order #${id} has been cancelled.`]
+        );
 
         response.json({ message : 'Order cancelled.' });
     }catch( error ){

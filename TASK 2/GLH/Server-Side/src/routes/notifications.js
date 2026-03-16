@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/' , requireAuth , async( request , response )=>{
     try{
         const userId = request.userId;
-        const { unread_only } = request.query;
+        const { unread_only , limit , order_id , type } = request.query;
 
         let sql = `SELECT id , type , message , is_read , order_id , product_id , created_at
                    FROM notifications WHERE customer_id = ?`;
@@ -18,10 +18,32 @@ router.get('/' , requireAuth , async( request , response )=>{
             sql += ' AND is_read = FALSE';
         }
 
+        if( order_id ){
+            sql += ' AND order_id = ?';
+            params.push(order_id);
+        }
+
+        if( type ){
+            sql += ' AND type = ?';
+            params.push(type);
+        }
+
         sql += ' ORDER BY created_at DESC';
 
+        if( limit && !isNaN(limit) ){
+            sql += ' LIMIT ?';
+            params.push(Math.max(1, Math.min(100, parseInt(limit))));
+        }
+
         const notifications = await query(sql , params);
-        const unreadCount = notifications.filter(n => !n.is_read).length;
+
+        const unreadRows = await query(
+            `SELECT COUNT(*) AS unread_count
+             FROM notifications
+             WHERE customer_id = ? AND is_read = FALSE`,
+            [userId]
+        );
+        const unreadCount = unreadRows[0]?.unread_count ?? 0;
 
         response.json({ notifications , unread_count : unreadCount });
     }catch( error ){
@@ -30,33 +52,8 @@ router.get('/' , requireAuth , async( request , response )=>{
     }
 });
 
-/* PATCH /api/notifications/:id/read — mark a single notification as read */
-router.patch('/:id/read' , requireAuth , async( request , response )=>{
-    try{
-        const userId = request.userId;
-        const { id } = request.params;
-
-        if( isNaN(id) ){
-            return response.status(400).json({ error : 'Invalid notification ID.' });
-        }
-
-        const result = await query(
-            `UPDATE notifications SET is_read = TRUE WHERE id = ? AND customer_id = ?`,
-            [id , userId]
-        );
-
-        if( result.affectedRows === 0 ){
-            return response.status(404).json({ error : 'Notification not found.' });
-        }
-
-        response.json({ message : 'Notification marked as read.' });
-    }catch( error ){
-        console.error(`Error marking notification: ${error.message}`);
-        response.status(500).json({ error : 'Failed to update notification.' });
-    }
-});
-
 /* PATCH /api/notifications/read-all — mark all as read */
+/* NOTE: must be defined before /:notification_id/read to prevent Express matching "read-all" as a param */
 router.patch('/read-all' , requireAuth , async( request , response )=>{
     try{
         await query(
@@ -67,6 +64,32 @@ router.patch('/read-all' , requireAuth , async( request , response )=>{
     }catch( error ){
         console.error(`Error marking all notifications: ${error.message}`);
         response.status(500).json({ error : 'Failed to update notifications.' });
+    }
+});
+
+/* PATCH /api/notifications/:notification_id/read — mark a single notification as read */
+router.patch('/:notification_id/read' , requireAuth , async( request , response )=>{
+    try{
+        const userId = request.userId;
+        const { notification_id } = request.params;
+
+        if( isNaN(notification_id) ){
+            return response.status(400).json({ error : 'Invalid notification ID.' });
+        }
+
+        const result = await query(
+            `UPDATE notifications SET is_read = TRUE WHERE id = ? AND customer_id = ?`,
+            [notification_id , userId]
+        );
+
+        if( result.affectedRows === 0 ){
+            return response.status(404).json({ error : 'Notification not found.' });
+        }
+
+        response.json({ message : 'Notification marked as read.' });
+    }catch( error ){
+        console.error(`Error marking notification: ${error.message}`);
+        response.status(500).json({ error : 'Failed to update notification.' });
     }
 });
 

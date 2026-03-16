@@ -10,10 +10,30 @@ const router = express.Router();
 router.post( '/register' , async ( request , response )=>{
     try{
         /* Email and password destructuring from the main request body */
-        const { email , password } = request.body
+        const {
+            email,
+            password,
+            role = 'customer',
+            farm_name,
+            contact_number
+        } = request.body;
+
         if( !email || !password ){
             return response.status(400).json({
                 error : 'Email and password are required.'
+            });
+        }
+
+        const allowedRoles = ['customer', 'producer'];
+        if( !allowedRoles.includes(role) ){
+            return response.status(400).json({
+                error : `role must be one of: ${allowedRoles.join(', ')}.`
+            });
+        }
+
+        if( role === 'producer' && (!farm_name || !contact_number) ){
+            return response.status(400).json({
+                error : 'farm_name and contact_number are required for producer registration.'
             });
         }
 
@@ -49,24 +69,40 @@ router.post( '/register' , async ( request , response )=>{
         const passwordHash = await bcrypt.hash( password , 10 );
 
         /* Insert user into database */
-        const result = await query(
-            'INSERT INTO users (email,password_hash,role) VALUES ( ? , ? , ? )',
-            [ email , passwordHash , 'customer']
-        );
+        const result = role === 'producer'
+            ? await query(
+                `INSERT INTO users
+                 (email, password_hash, role, farm_name, contact_number, producer_status, email_verified)
+                 VALUES ( ? , ? , 'producer', ? , ? , 'pending', FALSE )`,
+                [ email , passwordHash , farm_name , contact_number ]
+            )
+            : await query(
+                `INSERT INTO users (email, password_hash, role, email_verified)
+                 VALUES ( ? , ? , 'customer', FALSE )`,
+                [ email , passwordHash ]
+            );
 
         console.log(chalk.green(`New user registered:${email}`));
 
         /* Create session directly using insert result */
         request.session.userId = result.insertId;
         request.session.email = email;
-        request.session.role = 'customer';
+        request.session.role = role;
+        request.session.farm_name = role === 'producer' ? farm_name : null;
+        request.session.contact_number = role === 'producer' ? contact_number : null;
+        request.session.email_verified = false;
+        request.session.producer_status = role === 'producer' ? 'pending' : null;
 
         response.status(201).json({
             message : 'Registration successful.',
             user : {
                 id : result.insertId,
                 email : email, 
-                role : 'customer'
+                role : role,
+                farm_name : role === 'producer' ? farm_name : null,
+                contact_number : role === 'producer' ? contact_number : null,
+                email_verified : false,
+                producer_status : role === 'producer' ? 'pending' : null
             }
         });
     }catch( error ){
@@ -92,7 +128,9 @@ router.post('/login' , async ( request , response )=>{
 
         /* fetch user by email */
         const users = await query(
-            'SELECT id,email,password_hash,role FROM users WHERE email = ?',
+            `SELECT id , email , password_hash , role , farm_name , contact_number ,
+             email_verified , producer_status
+             FROM users WHERE email = ?`,
             [email]
         );
 
@@ -116,6 +154,10 @@ router.post('/login' , async ( request , response )=>{
         request.session.userId = user.id;
         request.session.email = user.email;
         request.session.role = user.role;
+        request.session.farm_name = user.farm_name;
+        request.session.contact_number = user.contact_number;
+        request.session.email_verified = Boolean(user.email_verified);
+        request.session.producer_status = user.producer_status;
 
         console.log(chalk.green(`User logged in: ${email}`))
         response.status(200).json({
@@ -123,7 +165,11 @@ router.post('/login' , async ( request , response )=>{
             user : {
                 id : user.id,
                 email : user.email,
-                role : user.role
+                role : user.role,
+                farm_name : user.farm_name,
+                contact_number : user.contact_number,
+                email_verified : Boolean(user.email_verified),
+                producer_status : user.producer_status
             }
         });
 
@@ -162,7 +208,11 @@ router.get('/status', ( request , response )=>{
             user : {
                 id : request.session.userId,
                 email : request.session.email,
-                role : request.session.role
+                role : request.session.role,
+                farm_name : request.session.farm_name ?? null,
+                contact_number : request.session.contact_number ?? null,
+                email_verified : request.session.email_verified ?? false,
+                producer_status : request.session.producer_status ?? null
             }
         });
     }

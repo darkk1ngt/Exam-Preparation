@@ -54,12 +54,60 @@ router.get('/' , requireAuth , async( request , response )=>{
         }
 
         if( role === 'producer' ){
+            const producerRows = await query(
+                `SELECT email_verified , producer_status FROM users WHERE id = ?`,
+                [userId]
+            );
+
+            if( producerRows.length === 0 ){
+                return response.status(404).json({ error : 'Producer not found.' });
+            }
+
+            const producer = producerRows[0];
+            const has_dashboard_access =
+                producer.email_verified === 1 &&
+                producer.producer_status === 'approved';
+
+            if( !has_dashboard_access ){
+                return response.status(403).json({
+                    error : 'Producer access not approved.',
+                    message : 'Producer account must be email-verified and approved.'
+                });
+            }
+
             /* Producer overview */
             const [productStats] = await query(
                 `SELECT COUNT(*) AS total_products ,
                    SUM(is_available = TRUE) AS active ,
                    SUM(stock_quantity) AS total_stock
                  FROM products WHERE producer_id = ?`,
+                [userId]
+            );
+
+            const [pendingOrders] = await query(
+                `SELECT COUNT(DISTINCT o.id) AS pending_orders
+                 FROM orders o
+                 JOIN order_items oi ON oi.order_id = o.id
+                 JOIN products p ON p.id = oi.product_id
+                 WHERE p.producer_id = ? AND o.status = 'pending'`,
+                [userId]
+            );
+
+            const [weeklyRevenue] = await query(
+                `SELECT ROUND(COALESCE(SUM(oi.quantity * oi.unit_price), 0), 2) AS weekly_revenue
+                 FROM orders o
+                 JOIN order_items oi ON oi.order_id = o.id
+                 JOIN products p ON p.id = oi.product_id
+                 WHERE p.producer_id = ?
+                   AND o.status NOT IN ('cancelled')
+                   AND o.created_at >= (NOW() - INTERVAL 7 DAY)`,
+                [userId]
+            );
+
+            const [lowStock] = await query(
+                `SELECT COUNT(*) AS low_stock_alerts
+                 FROM products
+                 WHERE producer_id = ? AND stock_quantity < 5`,
                 [userId]
             );
 
@@ -78,7 +126,20 @@ router.get('/' , requireAuth , async( request , response )=>{
             const myProducts = await query(
                 `SELECT id , name , price , stock_quantity , is_available
                  FROM products WHERE producer_id = ?
-                 ORDER BY created_at DESC LIMIT 10`,
+                 ORDER BY created_at DESC`,
+                [userId]
+            );
+
+            const incomingOrders = await query(
+                `SELECT DISTINCT
+                    o.id , o.customer_id , o.status , o.fulfilment_type ,
+                    o.created_at , o.updated_at , o.total_price
+                 FROM orders o
+                 JOIN order_items oi ON oi.order_id = o.id
+                 JOIN products p ON p.id = oi.product_id
+                 WHERE p.producer_id = ?
+                 ORDER BY o.created_at DESC
+                 LIMIT 25`,
                 [userId]
             );
 
@@ -86,7 +147,11 @@ router.get('/' , requireAuth , async( request , response )=>{
                 role,
                 product_stats : productStats,
                 top_sales : recentSales,
-                my_products : myProducts
+                my_products : myProducts,
+                incoming_orders : incomingOrders,
+                pending_orders : pendingOrders.pending_orders,
+                weekly_revenue : weeklyRevenue.weekly_revenue,
+                low_stock_alerts : lowStock.low_stock_alerts
             });
         }
 

@@ -1,18 +1,25 @@
 import express from 'express';
 import { query } from '../database/connection.js';
 import { requireAuth , requireAdmin } from '../utils/middleware.js';
+import { optionalAuth } from '../utils/middleware.js';
 
 const router = express.Router();
 
 /* Get all available collection slots */
-router.get('/' , async( request , response )=>{
+router.get('/' , optionalAuth , async( request , response )=>{
     try{
         const { date } = request.query;
 
+        const isAdmin = request.userRole === 'admin';
+
         let sql = `SELECT id , slot_date , slot_time , max_capacity , current_bookings ,
                    (max_capacity - current_bookings) AS remaining_capacity , is_available
-                   FROM collection_slots WHERE is_available = TRUE`;
+                   FROM collection_slots WHERE 1 = 1`;
         const params = [];
+
+        if( !isAdmin ){
+            sql += ' AND is_available = TRUE';
+        }
 
         if( date ){
             sql += ' AND slot_date = ?';

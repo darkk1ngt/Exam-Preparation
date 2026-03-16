@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from '../database/connection.js';
-import { requireAuth , requireProducer , requireAdmin } from '../utils/middleware.js';
+import { requireAuth , requireProducer } from '../utils/middleware.js';
 import { optionalAuth } from '../utils/middleware.js';
 
 const router = express.Router();
@@ -10,13 +10,22 @@ router.get('/' , optionalAuth , async( request , response )=>{
     try{
         const { category , producer_id , search } = request.query;
 
+        const can_view_all_for_producer =
+            producer_id &&
+            request.userId &&
+            (request.userRole === 'admin' || request.userId === parseInt(producer_id));
+
         let sql = `SELECT p.id , p.name , p.description , p.category , p.price ,
                    p.stock_quantity , p.is_available , p.image_url , p.created_at ,
                    u.farm_name AS producer_farm , u.id AS producer_id
                    FROM products p
                    JOIN users u ON p.producer_id = u.id
-                   WHERE p.is_available = TRUE AND p.stock_quantity > 0`;
+                   WHERE 1 = 1`;
         const params = [];
+
+        if( !can_view_all_for_producer ){
+            sql += ' AND p.is_available = TRUE AND p.stock_quantity > 0';
+        }
 
         if( category ){
             sql += ' AND p.category = ?';
@@ -115,7 +124,7 @@ router.patch('/:id' , requireAuth , requireProducer , async( request , response 
         }
 
         /* Ensure the product belongs to this producer (unless admin) */
-        const products = await query(`SELECT producer_id FROM products WHERE id = ?` , [id]);
+        const products = await query(`SELECT id , producer_id , name , is_available FROM products WHERE id = ?` , [id]);
         if( products.length === 0 ){
             return response.status(404).json({ error : 'Product not found.' });
         }
@@ -146,6 +155,41 @@ router.patch('/:id' , requireAuth , requireProducer , async( request , response 
 
         updateValues.push(id);
         await query(`UPDATE products SET ${updateFields.join(', ')} WHERE id = ?` , updateValues);
+
+        const previous_is_available = Boolean(products[0].is_available);
+        const next_is_available = is_available !== undefined
+            ? Boolean(is_available)
+            : previous_is_available;
+
+        if( is_available !== undefined && previous_is_available !== next_is_available ){
+            const interestedCustomers = await query(
+                `SELECT DISTINCT customer_id FROM (
+                    SELECT ci.customer_id
+                    FROM cart_items ci
+                    WHERE ci.product_id = ?
+                    UNION
+                    SELECT o.customer_id
+                    FROM order_items oi
+                    JOIN orders o ON o.id = oi.order_id
+                    WHERE oi.product_id = ?
+                ) interested_customers`,
+                [id , id]
+            );
+
+            if( interestedCustomers.length > 0 ){
+                const message = next_is_available
+                    ? `Product '${products[0].name}' is now available.`
+                    : `Product '${products[0].name}' is currently unavailable.`;
+
+                for( const customer of interestedCustomers ){
+                    await query(
+                        `INSERT INTO notifications (customer_id , product_id , type , message)
+                         VALUES (? , ? , 'product_available' , ?)`,
+                        [customer.customer_id , id , message]
+                    );
+                }
+            }
+        }
 
         const updated = await query(`SELECT * FROM products WHERE id = ?` , [id]);
         response.json({ message : 'Product updated.' , product : updated[0] });

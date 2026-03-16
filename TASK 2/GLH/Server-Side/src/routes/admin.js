@@ -12,7 +12,7 @@ router.get('/users' , async( request , response )=>{
     try{
         const { role } = request.query;
 
-        let sql = `SELECT id , email , role , farm_name , contact_number , created_at FROM users`;
+        let sql = `SELECT id , email , role , farm_name , contact_number , email_verified , producer_status , created_at FROM users`;
         const params = [];
 
         if( role ){
@@ -60,6 +60,44 @@ router.patch('/users/:id/role' , async( request , response )=>{
     }catch( error ){
         console.error(`Error updating user role: ${error.message}`);
         response.status(500).json({ error : 'Failed to update user role.' });
+    }
+});
+
+/* PATCH /api/admin/users/:id/producer-status — approve/reject producer applications */
+router.patch('/users/:id/producer-status' , async( request , response )=>{
+    try{
+        const { id } = request.params;
+        const { producer_status } = request.body;
+
+        if( isNaN(id) ){
+            return response.status(400).json({ error : 'Invalid user ID.' });
+        }
+
+        const validStatuses = ['approved' , 'rejected' , 'pending'];
+        if( !producer_status || !validStatuses.includes(producer_status) ){
+            return response.status(400).json({
+                error : `producer_status must be one of: ${validStatuses.join(', ')}.`
+            });
+        }
+
+        const users = await query(
+            `SELECT id , role FROM users WHERE id = ?`,
+            [id]
+        );
+
+        if( users.length === 0 ){
+            return response.status(404).json({ error : 'User not found.' });
+        }
+
+        await query(
+            `UPDATE users SET role = 'producer' , producer_status = ? WHERE id = ?`,
+            [producer_status , id]
+        );
+
+        response.json({ message : `Producer status updated to '${producer_status}'.` });
+    }catch( error ){
+        console.error(`Error updating producer status: ${error.message}`);
+        response.status(500).json({ error : 'Failed to update producer status.' });
     }
 });
 

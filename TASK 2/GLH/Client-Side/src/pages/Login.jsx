@@ -21,8 +21,7 @@ export default function Login(){
         try{
             const result = await login( email , password );
             if( result.success ){
-                console.log(`Login successful!`,result.data);
-                navigate('/dashboard');
+                navigate('/products');
                 setEmail('');
                 setPassword('');
             }else{
@@ -36,34 +35,38 @@ export default function Login(){
     };
 
     return(
-        <form onSubmit={handleSubmit}>
-            <h2>Login</h2>
-            
-            <input
-                type="email"
-                placeholder="example@email.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-            />
-            
-            <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(event => setPassword(event.target.value))}
-                required
-            />
-            
-            <button type="button" onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? 'Hide Password' : 'Show Password'}
-            </button>
-            
-            <button type="submit" disabled={loading}>
-                {loading ? 'Logging in...' : 'Login'}
-            </button>
-            
-            {error && <p style={{color:'red'}}>{error}</p>}
-        </form>
+        <section className='card' style={{ maxWidth : '460px' , margin : '0 auto' }}>
+            <form className='card-grid' onSubmit={handleSubmit}>
+                <h1>Login</h1>
+
+                <input
+                    type='email'
+                    className='input'
+                    placeholder='example@email.com'
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    required
+                />
+
+                <input
+                    type={showPassword ? 'text' : 'password'}
+                    className='input'
+                    placeholder='Password'
+                    value={password}
+                    onChange={(event => setPassword(event.target.value))}
+                    required
+                />
+
+                <button className='btn-outline' type='button' onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? 'Hide Password' : 'Show Password'}
+                </button>
+
+                <button className='btn' type='submit' disabled={loading}>
+                    {loading ? 'Logging in...' : 'Login'}
+                </button>
+
+                {error && <p className='pill status-red'>{error}</p>}
+            </form>
+        </section>
     )
 }
