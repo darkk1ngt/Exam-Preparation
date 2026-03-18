@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:farm-direct.com)",
+      "Bash(find c:UsersLusaTemOneDrive - reading.gov.ukDesktopExam PreparationTASK 2serversrc -type f -name *)"
+    ]
+  }
+}

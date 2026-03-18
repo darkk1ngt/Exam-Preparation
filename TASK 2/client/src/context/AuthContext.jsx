@@ -7,7 +7,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -17,20 +16,15 @@ export function AuthProvider({ children }) {
       .catch(() => setLoading(false));
   }, []);
 
-  const logout = () => {
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
-      .then(() => {
-        setUser(null);
-        window.location.href = '/login';
-      });
-  };
+  const login = (userData) => setUser(userData);
 
-  const login = (userData) => {
-    setUser(userData);
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout, login, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -38,8 +32,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }
