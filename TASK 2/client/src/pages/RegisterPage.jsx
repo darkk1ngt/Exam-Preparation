@@ -32,7 +32,7 @@ const RegisterPage = () => {
       if (!res.ok) {
         setError(data.error || 'Registration failed');
       } else {
-        setSuccess('Account created! Please check your email to verify your address, then log in.');
+        navigate('verify-email', { token: data.verifyToken });
       }
     } catch {
       setError('Network error — check server is running');

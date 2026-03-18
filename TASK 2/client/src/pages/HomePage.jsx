@@ -45,6 +45,7 @@ const HomePage = () => {
     if (res.ok) {
       setCartMsg('Added to basket!');
       setTimeout(() => setCartMsg(''), 2000);
+      window.dispatchEvent(new CustomEvent('cartUpdated'));
     }
   };
 

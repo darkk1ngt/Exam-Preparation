@@ -6,6 +6,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { initializeDatabase } from './database/schema.js';
 import { testConnection, initializeConnection, getPool } from './database/connection.js';
+import seed from './database/seed.js';
 
 dotenv.config({ path: new URL('./.env', import.meta.url) });
 
@@ -171,6 +172,9 @@ async function startServer(){
         
         await initializeDatabase();
         console.log(chalk.green('✓ Database schema initialized'));
+
+        await seed();
+        console.log(chalk.green('✓ Database seeded'));
 
         server = app.listen(PORT, () => {
             console.log(chalk.bold.magenta(

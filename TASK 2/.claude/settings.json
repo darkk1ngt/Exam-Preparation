@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(netstat -ano)",
+      "Read(//c/Users/temwani/Desktop/Da PImp Zone/Exam-Preparation/TASK 2/**)",
+      "Bash(node -e \":*)",
+      "Bash(curl -s -X GET \"http://localhost:5003/api/auth/verify-email?token=test\")",
+      "Bash(mysql -u root --host=localhost --port=3306 -e \"USE Greenfields; SELECT email_verify_token FROM users WHERE email=''toellusale7@gmail.com'';\")",
+      "Bash(mysql -u root --host=localhost -e \"USE Greenfields; SELECT email_verify_token FROM users WHERE email=''toellusale7@gmail.com'';\")",
+      "Bash(curl -s \"http://localhost:5003/api/auth/verify-email?token=d07ff06639b44245fd896750554eec8440256fe0e1bb53f7b6943a331f16d1dd\")",
+      "Bash(node -e \"import\\(''./src/database/connection.js''\\).then\\(\\({query}\\) => query\\(''SELECT COUNT\\(*\\) as c FROM products''\\).then\\(r => console.log\\(''products:'', r[0].c\\)\\).catch\\(e => console.error\\(e\\)\\)\\)\")"
+    ]
+  }
+}

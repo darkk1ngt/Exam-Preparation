@@ -80,7 +80,7 @@ const LoginPage = () => {
               <label style={{fontSize:'12px', color:'#555', display:'block', marginBottom:'4px'}}>Password: <span className="req">*</span></label>
               <input type="password" className="form-input" style={{maxWidth:'100%', width:'100%'}} value={password} onChange={e => setPassword(e.target.value)} required />
             </div>
-            <a onClick={() => navigate('home')} style={{color:'var(--green-deep)', fontSize:'12px', display:'block', marginBottom:'20px', cursor:'pointer'}}>Forgot password?</a>
+            <a onClick={() => navigate('forgot-password')} style={{color:'var(--green-deep)', fontSize:'12px', display:'block', marginBottom:'20px', cursor:'pointer'}}>Forgot password?</a>
             <button type="submit" disabled={loading} style={{color:'var(--green-deep)', fontSize:'14px', fontWeight:700, textDecoration:'none', display:'flex', alignItems:'center', gap:'4px', background:'none', border:'none', cursor:'pointer', padding:0}}>
               {loading ? 'Signing in…' : 'Login ›'}
             </button>

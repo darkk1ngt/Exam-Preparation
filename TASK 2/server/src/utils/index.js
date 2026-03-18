@@ -36,6 +36,8 @@ export async function sendEmail(to, subject, html) {
     try {
         if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
             console.log(`[Email would be sent to ${to}] ${subject}`);
+            const linkMatch = html.match(/href="([^"]+)"/);
+            if (linkMatch) console.log(`[Dev reset link] ${linkMatch[1]}`);
             return true;
         }
         await transporter.sendMail({ from: process.env.EMAIL_USER, to, subject, html });

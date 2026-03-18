@@ -76,7 +76,8 @@ router.post('/register', async (req, res) => {
 
         return res.status(201).json({
             message: 'Registration successful. Check your email to verify.',
-            userId
+            userId,
+            verifyToken: emailVerifyToken
         });
     } catch (error) {
         console.error('Register error:', error);
@@ -211,6 +212,10 @@ router.post('/reset-password', async (req, res) => {
 
     if (!token || !newPassword) {
         return res.status(400).json({ error: 'token and newPassword required' });
+    }
+
+    if (!isValidPassword(newPassword)) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters and contain uppercase, lowercase, a number, and a special character' });
     }
 
     try {

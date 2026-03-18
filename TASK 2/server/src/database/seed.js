@@ -254,6 +254,192 @@ export default async function seed() {
       description: 'Stoneground wholemeal flour milled on site from heritage wheat varieties.',
       image_url: 'https://images.unsplash.com/photo-1571748982800-fa51082c2224?w=320&h=200&fit=crop&auto=format',
     },
+
+    // ── New & Seasonal ───────────────────────────────────────────────────────
+    {
+      farm: 'Brookside Farm', name: 'Purple Sprouting Broccoli', category: 'New & Seasonal',
+      price: 2.40, stock: 60,
+      description: 'Early season purple sprouting broccoli, tender stems and florets. March harvest.',
+      image_url: 'https://images.unsplash.com/photo-1584270354949-c26b0d5b4a0c?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Sunset Fields', name: 'British Asparagus (500g)', category: 'New & Seasonal',
+      price: 4.50, stock: 40,
+      description: 'First of the season British asparagus. Available for a short window only.',
+      image_url: 'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Meadow View Farm', name: 'Wild Garlic Pesto (200g)', category: 'New & Seasonal',
+      price: 3.80, stock: 35,
+      description: 'Handmade wild garlic pesto using freshly foraged leaves. Spring only.',
+      image_url: 'https://images.unsplash.com/photo-1534080564583-6be75777b70a?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Orchard House Farm', name: 'Rhubarb (500g)', category: 'New & Seasonal',
+      price: 2.00, stock: 55,
+      description: 'Forced early rhubarb, bright pink and tender. Perfect for crumbles and compotes.',
+      image_url: 'https://images.unsplash.com/photo-1590165482129-1b8b27698780?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Offers ───────────────────────────────────────────────────────────────
+    {
+      farm: 'Hillside Dairy', name: 'Butter Twin Pack (2×250g)', category: 'Offers',
+      price: 3.50, stock: 45,
+      description: 'Two packs of our churned unsalted butter. Save 20% on the bundle.',
+      image_url: 'https://images.unsplash.com/photo-1589985270826-4b7bb135bc9d?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'The Old Mill Farm', name: 'Mixed Loaf Box (3 loaves)', category: 'Offers',
+      price: 7.00, stock: 20,
+      description: 'One sourdough, one wholemeal, one seeded rye. Great value bundle.',
+      image_url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Orchard House Farm', name: 'Mixed Apple Bag (3kg)', category: 'Offers',
+      price: 5.00, stock: 50,
+      description: 'Assorted Cox, Braeburn and Russet apples. End of season special price.',
+      image_url: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Meadow View Farm', name: 'Honey & Jam Bundle', category: 'Offers',
+      price: 7.50, stock: 30,
+      description: 'Wildflower honey and raspberry jam together at a reduced price.',
+      image_url: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Root Veg ─────────────────────────────────────────────────────────────
+    {
+      farm: 'Brookside Farm', name: 'Parsnips (1kg)', category: 'Root Veg',
+      price: 1.40, stock: 120,
+      description: 'Sweet, earthy parsnips. Excellent roasted or in soups.',
+      image_url: 'https://images.unsplash.com/photo-1606923829579-0cb981a83e2e?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Brookside Farm', name: 'Raw Beetroot (500g)', category: 'Root Veg',
+      price: 1.30, stock: 100,
+      description: 'Earthy red beetroot, unwashed. Roast whole or grate raw into salads.',
+      image_url: 'https://images.unsplash.com/photo-1593105544559-ecb03bf76f82?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Brookside Farm', name: 'Swede (each)', category: 'Root Veg',
+      price: 0.90, stock: 80,
+      description: 'Large British swede, great mashed with butter or added to stews.',
+      image_url: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Salad Leaves ─────────────────────────────────────────────────────────
+    {
+      farm: 'Sunset Fields', name: 'Rocket Leaves (100g)', category: 'Salad Leaves',
+      price: 1.20, stock: 140,
+      description: 'Peppery wild rocket, cut and ready to dress.',
+      image_url: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Sunset Fields', name: 'Little Gem Lettuce (2pk)', category: 'Salad Leaves',
+      price: 1.40, stock: 90,
+      description: 'Crisp, compact little gem lettuces. Perfect for wedge salads.',
+      image_url: 'https://images.unsplash.com/photo-1622205313162-be1d5712a43f?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Sunset Fields', name: 'Watercress (85g)', category: 'Salad Leaves',
+      price: 1.10, stock: 80,
+      description: 'Peppery watercress, fresh cut. Rich in iron and vitamin C.',
+      image_url: 'https://images.unsplash.com/photo-1576673442511-7e39b6545c87?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Brassicas ────────────────────────────────────────────────────────────
+    {
+      farm: 'Brookside Farm', name: 'Savoy Cabbage (each)', category: 'Brassicas',
+      price: 1.50, stock: 70,
+      description: 'Firm, wrinkled savoy cabbage. Ideal for braising or stir frying.',
+      image_url: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Brookside Farm', name: 'Tenderstem Broccoli (200g)', category: 'Brassicas',
+      price: 2.20, stock: 75,
+      description: 'Tender broccoli stems and florets, sweet and quick to cook.',
+      image_url: 'https://images.unsplash.com/photo-1584270354949-c26b0d5b4a0c?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Sunset Fields', name: 'Cauliflower (each)', category: 'Brassicas',
+      price: 1.80, stock: 60,
+      description: 'Full head British cauliflower. Versatile and fresh picked.',
+      image_url: 'https://images.unsplash.com/photo-1568584711075-3d021a7c3ca3?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Squash ───────────────────────────────────────────────────────────────
+    {
+      farm: 'Brookside Farm', name: 'Butternut Squash (each)', category: 'Squash',
+      price: 1.90, stock: 65,
+      description: 'Sweet butternut squash, great roasted, in soup or risotto.',
+      image_url: 'https://images.unsplash.com/photo-1570586438421-f3a2a5a0dcb5?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Brookside Farm', name: 'Crown Prince Squash (each)', category: 'Squash',
+      price: 3.20, stock: 30,
+      description: 'Dense, nutty Crown Prince squash with blue-grey skin. Stores for months.',
+      image_url: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Alliums ──────────────────────────────────────────────────────────────
+    {
+      farm: 'Brookside Farm', name: 'Garlic Bulbs (3pk)', category: 'Alliums',
+      price: 1.50, stock: 120,
+      description: 'Locally grown cured garlic bulbs, strong flavour and long shelf life.',
+      image_url: 'https://images.unsplash.com/photo-1540148426945-6cf22a6b2383?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Brookside Farm', name: 'Spring Onions (bunch)', category: 'Alliums',
+      price: 0.80, stock: 150,
+      description: 'Crisp spring onions, great in salads, stir fries and dips.',
+      image_url: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Sunset Fields', name: 'Red Onions (1kg)', category: 'Alliums',
+      price: 1.20, stock: 110,
+      description: 'Sweet red onions, mild enough to eat raw. Great pickled too.',
+      image_url: 'https://images.unsplash.com/photo-1508747703725-719777637510?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Legumes ──────────────────────────────────────────────────────────────
+    {
+      farm: 'Sunset Fields', name: 'Runner Beans (500g)', category: 'Legumes',
+      price: 1.80, stock: 85,
+      description: 'Fresh runner beans, stringless and tender. Best eaten the same day.',
+      image_url: 'https://images.unsplash.com/photo-1567306301408-9b74779a11af?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Meadow View Farm', name: 'Broad Beans (500g)', category: 'Legumes',
+      price: 2.00, stock: 60,
+      description: 'Young broad beans in the pod. Double pod and dress with mint and lemon.',
+      image_url: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Brookside Farm', name: 'Sugar Snap Peas (200g)', category: 'Legumes',
+      price: 1.60, stock: 70,
+      description: 'Sweet sugar snap peas, ready to eat raw or lightly steamed.',
+      image_url: 'https://images.unsplash.com/photo-1587486936739-78b49f72dddf?w=320&h=200&fit=crop&auto=format',
+    },
+
+    // ── Heritage Varieties ───────────────────────────────────────────────────
+    {
+      farm: 'Brookside Farm', name: 'Purple Carrots (500g)', category: 'Heritage',
+      price: 2.20, stock: 50,
+      description: 'Deep purple heritage carrots with a sweet, slightly spiced flavour.',
+      image_url: 'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'Orchard House Farm', name: 'Russet Apples (1kg)', category: 'Heritage',
+      price: 3.00, stock: 40,
+      description: 'Nutty, dry Russet apples from our heritage orchard. Beloved British variety.',
+      image_url: 'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=320&h=200&fit=crop&auto=format',
+    },
+    {
+      farm: 'The Old Mill Farm', name: 'Einkorn Flour (1kg)', category: 'Heritage',
+      price: 4.50, stock: 30,
+      description: 'Ancient einkorn wheat flour, nutty and nutritious. Stone milled on site.',
+      image_url: 'https://images.unsplash.com/photo-1571748982800-fa51082c2224?w=320&h=200&fit=crop&auto=format',
+    },
   ];
 
   for (const p of products) {

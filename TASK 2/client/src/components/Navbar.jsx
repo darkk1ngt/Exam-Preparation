@@ -41,21 +41,27 @@ const CAT_LABEL_TO_FILTER = {
 function Navbar({ role = 'customer', notifCount = 0, activeCat = null, cats = null }) {
   const { user, logout } = useAuth();
   const { navigate } = useNavigation();
-  const [cartTotal, setCartTotal] = useState(null);
+  const [cartCount, setCartCount] = useState(0);
 
   const loggedIn = !!user;
 
-  useEffect(() => {
+  const refreshCart = () => {
     if (!user || role !== 'customer') return;
     fetch('/api/cart', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.items) {
-          const total = data.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
-          setCartTotal(`£${total.toFixed(2)}`);
+          const count = data.items.reduce((s, i) => s + i.quantity, 0);
+          setCartCount(count);
         }
       })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshCart();
+    window.addEventListener('cartUpdated', refreshCart);
+    return () => window.removeEventListener('cartUpdated', refreshCart);
   }, [user, role]);
 
   const handleLogout = async () => {
@@ -172,9 +178,13 @@ function Navbar({ role = 'customer', notifCount = 0, activeCat = null, cats = nu
             <>
               <a onClick={() => navigate('tracking')} className="nav-link" style={{cursor:'pointer'}}>{displayName}</a>
               <button onClick={handleLogout} className="nav-link" style={{background:'none',border:'none',cursor:'pointer',color:'rgba(255,255,255,0.7)',fontSize:'12px',padding:'0 16px'}}>Logout</button>
-              <div className="nav-cart" style={{cursor:'pointer'}} onClick={() => navigate('home')}>
+              <div className="nav-cart" style={{cursor:'pointer',position:'relative'}} onClick={() => navigate('cart')}>
                 <CartSvg />
-                {cartTotal && <span style={{color:'rgba(255,255,255,0.85)',fontSize:'13px',fontWeight:600}}>{cartTotal}</span>}
+                {cartCount > 0 && (
+                  <span style={{position:'absolute',top:'-7px',right:'-7px',background:'#e53935',color:'#fff',fontSize:'10px',fontWeight:700,minWidth:'17px',height:'17px',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1,padding:'0 3px'}}>
+                    {cartCount}
+                  </span>
+                )}
               </div>
             </>
           ) : (

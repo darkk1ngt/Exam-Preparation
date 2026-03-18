@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../database/connection.js';
 import { requireAuth } from '../utils/middleware.js';
+import { isValidPassword } from '../utils/index.js';
 
 const router = express.Router();
 
@@ -76,6 +77,10 @@ router.put('/password', async (req, res) => {
 
     if (!currentPassword || !newPassword) {
         return res.status(400).json({ error: 'currentPassword and newPassword required' });
+    }
+
+    if (!isValidPassword(newPassword)) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters and contain uppercase, lowercase, a number, and a special character' });
     }
 
     try {

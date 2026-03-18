@@ -28,9 +28,9 @@ router.get('/overview', async (req, res) => {
         );
 
         const weeklyRevenue = await query(
-            `SELECT SUM(o.total_price) as revenue FROM orders o
-             JOIN order_items oi ON o.id = oi.order_id
+            `SELECT SUM(oi.unit_price * oi.quantity) as revenue FROM order_items oi
              JOIN products p ON oi.product_id = p.id
+             JOIN orders o ON oi.order_id = o.id
              WHERE p.producer_id = ? AND o.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`,
             [req.session.user.id]
         );
@@ -280,10 +280,10 @@ router.get('/analytics', async (req, res) => {
     const { start, end } = req.query;
 
     try {
-        let sql = `SELECT SUM(o.total_price) as sales, COUNT(o.id) as orders, p.category
-                   FROM orders o
-                   JOIN order_items oi ON o.id = oi.order_id
+        let sql = `SELECT SUM(oi.unit_price * oi.quantity) as sales, COUNT(DISTINCT o.id) as orders, p.category
+                   FROM order_items oi
                    JOIN products p ON oi.product_id = p.id
+                   JOIN orders o ON oi.order_id = o.id
                    WHERE p.producer_id = ?`;
         const params = [req.session.user.id];
 

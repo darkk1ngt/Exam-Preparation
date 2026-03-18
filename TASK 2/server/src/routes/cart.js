@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { query, getPool } from '../database/connection.js';
+import { query } from '../database/connection.js';
 import { requireAuth } from '../utils/middleware.js';
 
 const router = express.Router();
