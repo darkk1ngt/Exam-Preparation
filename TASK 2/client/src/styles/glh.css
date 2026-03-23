@@ -130,6 +130,12 @@
     border-bottom: 1px solid #f0ede6; cursor: pointer;
     text-decoration: none;
   }
+  .sidebar-item.with-trailing-icon {
+    justify-content: flex-start; gap: 8px;
+  }
+  .sidebar-item.with-trailing-icon svg.trailing-icon {
+    margin-left: auto; stroke: #2C2C2C; fill: none;
+  }
   .sidebar-item:hover { background: var(--cream-alt); }
   .sidebar-item.active { color: var(--green-deep); font-weight: 600; background: var(--cream-alt); }
   .sidebar-count { color: #999; font-size: 11px; }
@@ -184,8 +190,17 @@
   .add-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
   .qty-label { font-size: 11px; color: #888; }
   .qty-input {
-    width: 42px; height: 26px; border: 1px solid var(--border); border-radius: 3px;
-    text-align: center; font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 0;
+    width: 80px; height: 40px; border: 1px solid var(--border); border-radius: 3px;
+    text-align: center; font-family: 'DM Sans', sans-serif; font-size: 14px; padding: 0;
+    background: #fff; color: var(--charcoal);
+  }
+  .qty-input::-webkit-outer-spin-button,
+  .qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: outer-spin-button;
+    opacity: 1;
+  }
+  .qty-input-detail {
+    width: 60px;
   }
   .add-btn {
     background: var(--green); color: #fff; border: none; border-radius: 3px;

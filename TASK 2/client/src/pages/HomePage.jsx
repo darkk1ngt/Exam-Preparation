@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 import Footer from '../components/Footer.jsx';
 import ProductCard from '../components/ProductCard.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -27,25 +28,21 @@ const HomePage = () => {
     const qs = new URLSearchParams();
     if (category !== 'all') qs.set('category', category);
     if (search) qs.set('search', search);
-    const url = `/api/products${qs.toString() ? '?' + qs.toString() : ''}`;
-    fetch(url)
-      .then(r => r.ok ? r.json() : { products: [] })
+    const url = `/products${qs.toString() ? '?' + qs.toString() : ''}`;
+    api.get(url)
       .then(data => { setProducts(data.products || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [category, search]);
 
   const handleAddToCart = async (productId, qty) => {
     if (!user) { navigate('login'); return; }
-    const res = await fetch('/api/cart', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ productId, quantity: qty }),
-    });
-    if (res.ok) {
+    try {
+      await api.post('/cart', { productId, quantity: qty });
       setCartMsg('Added to basket!');
       setTimeout(() => setCartMsg(''), 2000);
       window.dispatchEvent(new CustomEvent('cartUpdated'));
+    } catch {
+      // Keep current UX: silent failure in grid add action
     }
   };
 

@@ -154,13 +154,13 @@ export default async function seed() {
       farm: 'River Meadow Farm', name: 'Beef Mince (500g)', category: 'Meat',
       price: 5.99, stock: 40,
       description: 'Lean beef mince from our grass fed herd. 10% fat content.',
-      image_url: 'https://images.unsplash.com/photo-1603048588665-791ca8aea617?w=320&h=200&fit=crop&auto=format',
+      image_url: 'https://images.unsplash.com/photo-1555939594-58d7cb561759?w=320&h=200&fit=crop&auto=format',
     },
     {
       farm: 'River Meadow Farm', name: 'Ribeye Steak (250g)', category: 'Meat',
       price: 9.50, stock: 25,
       description: 'Aged ribeye steak with excellent marbling. Best cooked medium rare.',
-      image_url: 'https://images.unsplash.com/photo-1561047029-3000c68339ca?w=320&h=200&fit=crop&auto=format',
+      image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=320&h=200&fit=crop&auto=format',
     },
     {
       farm: 'River Meadow Farm', name: 'Pork Sausages (6pk)', category: 'Meat',

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
 const CartPage = () => {
@@ -12,11 +13,8 @@ const CartPage = () => {
 
   const fetchCart = async () => {
     try {
-      const res = await fetch('/api/cart', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data.items || []);
-      }
+      const data = await api.get('/cart');
+      setItems(data.items || []);
     } catch {
       setError('Failed to load cart');
     } finally {
@@ -28,17 +26,12 @@ const CartPage = () => {
 
   const updateQty = async (productId, quantity) => {
     if (quantity < 1) return removeItem(productId);
-    await fetch(`/api/cart/${productId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ quantity }),
-    });
+    await api.put(`/cart/${productId}`, { quantity });
     fetchCart();
   };
 
   const removeItem = async (productId) => {
-    await fetch(`/api/cart/${productId}`, { method: 'DELETE', credentials: 'include' });
+    await api.delete(`/cart/${productId}`);
     fetchCart();
   };
 
@@ -125,7 +118,7 @@ const CartPage = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700, color: 'var(--charcoal)', borderTop: '1px solid var(--border)', paddingTop: '12px', marginBottom: '16px' }}>
                 <span>Total</span><span>£{total.toFixed(2)}</span>
               </div>
-              <button className="btn btn-deep" style={{ width: '100%', padding: '10px', fontSize: '13px' }} onClick={() => navigate('tracking')}>
+              <button className="btn btn-deep" style={{ width: '100%', padding: '10px', fontSize: '13px' }} onClick={() => navigate('checkout')}>
                 Proceed to Checkout ›
               </button>
             </div>

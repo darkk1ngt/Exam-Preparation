@@ -3,6 +3,7 @@ import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -17,25 +18,18 @@ const ProductPage = () => {
 
   useEffect(() => {
     if (!params.productId) { navigate('home'); return; }
-    fetch(`/api/products/${params.productId}`)
-      .then(r => r.ok ? r.json() : null)
+    api.get(`/products/${params.productId}`)
       .then(data => { setProduct(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [params.productId]);
 
   const handleAddToCart = async () => {
     if (!user) { navigate('login'); return; }
-    const res = await fetch('/api/cart', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ productId: product.id, quantity: qty }),
-    });
-    if (res.ok) {
+    try {
+      await api.post('/cart', { productId: product.id, quantity: qty });
       setMsg('Added to basket!'); setMsgType('success');
-    } else {
-      const d = await res.json();
-      setMsg(d.error || 'Could not add to basket'); setMsgType('error');
+    } catch (error) {
+      setMsg(error.message || 'Could not add to basket'); setMsgType('error');
     }
     setTimeout(() => setMsg(''), 3000);
   };
@@ -100,9 +94,8 @@ const ProductPage = () => {
                 <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px'}}>
                   <span className="qty-label" style={{fontSize:'13px'}}>Qty.</span>
                   <input
-                    type="number" className="qty-input" value={qty} min="1"
+                    type="number" className="qty-input qty-input-detail" value={qty} min="1"
                     onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    style={{width:'52px', height:'34px', fontSize:'14px'}}
                   />
                   <button className="btn btn-deep" style={{padding:'8px 24px', fontSize:'14px'}} onClick={handleAddToCart}>
                     Add to Basket

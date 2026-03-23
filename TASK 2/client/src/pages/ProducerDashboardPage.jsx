@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Sidebar from '../components/Sidebar.jsx';
+import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -15,15 +17,21 @@ const ProducerDashboardPage = () => {
   const [statusMsg, setStatusMsg] = useState('');
 
   const fetchAll = useCallback(async () => {
-    const [ov, pr, or_] = await Promise.all([
-      fetch('/api/dashboard/overview', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch('/api/dashboard/products',  { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-      fetch('/api/dashboard/orders',    { credentials: 'include' }).then(r => r.ok ? r.json() : null),
-    ]);
-    if (ov) setOverview(ov);
-    if (pr?.products) setProducts(pr.products);
-    if (or_?.orders)  setOrders(or_.orders);
-    setLoading(false);
+    try {
+      const [ov, pr, or_] = await Promise.all([
+        api.get('/dashboard/overview'),
+        api.get('/dashboard/products'),
+        api.get('/dashboard/orders'),
+      ]);
+      if (ov) setOverview(ov);
+      if (pr?.products) setProducts(pr.products);
+      if (or_?.orders) setOrders(or_.orders);
+    } catch (err) {
+      setStatusMsg(err.message || 'Failed to load dashboard data');
+      setTimeout(() => setStatusMsg(''), 3000);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -33,16 +41,14 @@ const ProducerDashboardPage = () => {
   }, [user, authLoading]);
 
   const updateOrderStatus = async (orderId, status) => {
-    const res = await fetch(`/api/dashboard/orders/${orderId}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
+    try {
+      await api.put(`/dashboard/orders/${orderId}/status`, { status });
       setStatusMsg(`Order #${orderId} updated to ${status}`);
       setTimeout(() => setStatusMsg(''), 3000);
       fetchAll();
+    } catch {
+      setStatusMsg(`Failed to update Order #${orderId}`);
+      setTimeout(() => setStatusMsg(''), 3000);
     }
   };
 
@@ -178,6 +184,7 @@ const ProducerDashboardPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

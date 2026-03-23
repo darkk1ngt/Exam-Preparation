@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
-import Sidebar from '../components/Sidebar.jsx';
+import AccountSidebar from '../components/AccountSidebar.jsx';
 import Footer from '../components/Footer.jsx';
 import StatusTimeline from '../components/StatusTimeline.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -46,8 +47,7 @@ const OrderTrackingPage = () => {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate('login'); return; }
-    fetch('/api/orders', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : { orders: [] })
+    api.get('/orders')
       .then(data => {
         const list = data.orders || [];
         setOrders(list);
@@ -59,10 +59,16 @@ const OrderTrackingPage = () => {
 
   useEffect(() => {
     if (!selected) return;
-    fetch(`/api/orders/${selected}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => setDetail(data))
-      .catch(() => {});
+
+    const fetchOrderDetail = () => {
+      api.get(`/orders/${selected}`)
+        .then(data => setDetail(data))
+        .catch(() => {});
+    };
+
+    fetchOrderDetail();
+    const interval = setInterval(fetchOrderDetail, 2000);
+    return () => clearInterval(interval);
   }, [selected]);
 
   if (authLoading || loading) return <div style={{padding:'60px', textAlign:'center', color:'#888'}}>Loading…</div>;
@@ -76,14 +82,7 @@ const OrderTrackingPage = () => {
       <div className="breadcrumb"><a onClick={() => navigate('home')} style={{cursor:'pointer'}}>Home</a> / <span style={{color:'var(--charcoal)'}}>My Orders</span></div>
 
       <div className="layout">
-        <Sidebar heading="My Account">
-          <a className="sidebar-item active">My Orders</a>
-          <a className="sidebar-item" style={{cursor:'pointer'}} onClick={() => navigate('loyalty')}>Loyalty Points</a>
-          <a className="sidebar-item">Account Details</a>
-          <a className="sidebar-item" style={{cursor:'pointer'}} onClick={() => navigate('notifications')}>
-            <svg style={{width:'17px',height:'17px',fill:'none',stroke:'#fff',strokeWidth:1.8}} viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications
-          </a>
-        </Sidebar>
+        <AccountSidebar activeKey="orders" navigate={navigate} />
 
         <div className="main">
           <div className="page-title" style={{marginBottom:'8px'}}>My Orders</div>

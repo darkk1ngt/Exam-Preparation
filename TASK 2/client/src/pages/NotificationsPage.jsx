@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
-import Sidebar from '../components/Sidebar.jsx';
+import AccountSidebar from '../components/AccountSidebar.jsx';
 import Footer from '../components/Footer.jsx';
 import NotifItem from '../components/NotifItem.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -49,19 +50,18 @@ const NotificationsPage = () => {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate('login'); return; }
-    fetch('/api/notifications', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : { notifications: [] })
+    api.get('/notifications')
       .then(data => { setNotifications(data.notifications || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, [user, authLoading]);
 
   const markAllRead = async () => {
-    await fetch('/api/notifications/read-all', { method: 'PUT', credentials: 'include' });
+    await api.put('/notifications/read-all');
     setNotifications(n => n.map(item => ({ ...item, is_read: true })));
   };
 
   const markRead = async (id) => {
-    await fetch(`/api/notifications/${id}/read`, { method: 'PUT', credentials: 'include' });
+    await api.put(`/notifications/${id}/read`);
     setNotifications(n => n.map(item => item.id === id ? { ...item, is_read: true } : item));
   };
 
@@ -82,14 +82,7 @@ const NotificationsPage = () => {
       </div>
 
       <div className="layout">
-        <Sidebar heading="My Account">
-          <a className="sidebar-item" style={{cursor:'pointer'}} onClick={() => navigate('tracking')}>My Orders</a>
-          <a className="sidebar-item" style={{cursor:'pointer'}} onClick={() => navigate('loyalty')}>Loyalty Points</a>
-          <a className="sidebar-item">Account Details</a>
-          <a className="sidebar-item active">
-            <svg style={{width:'17px',height:'17px',fill:'none',stroke:'#fff',strokeWidth:1.8}} viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications
-          </a>
-        </Sidebar>
+        <AccountSidebar activeKey="notifications" navigate={navigate} />
 
         <div className="main">
           <div className="page-title" style={{marginBottom:'12px'}}>Notifications</div>

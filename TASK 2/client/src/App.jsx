@@ -6,6 +6,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage.jsx';
 import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import CartPage from './pages/CartPage.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
 import ProductPage from './pages/ProductPage.jsx';
 import OrderTrackingPage from './pages/OrderTrackingPage.jsx';
 import LoyaltyPage from './pages/LoyaltyPage.jsx';
@@ -13,24 +14,25 @@ import ProducerDashboardPage from './pages/ProducerDashboardPage.jsx';
 import NotificationsPage from './pages/NotificationsPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 
+const PAGES = {
+  home: HomePage,
+  login: LoginPage,
+  register: RegisterPage,
+  'verify-email': VerifyEmailPage,
+  'forgot-password': ForgotPasswordPage,
+  'reset-password': ResetPasswordPage,
+  cart: CartPage,
+  checkout: CheckoutPage,
+  product: ProductPage,
+  tracking: OrderTrackingPage,
+  loyalty: LoyaltyPage,
+  producer: ProducerDashboardPage,
+  notifications: NotificationsPage,
+  admin: AdminPage,
+};
+
 export default function App() {
   const { page } = useNavigation();
-
-  switch (page) {
-    case 'home':             return <HomePage />;
-    case 'login':            return <LoginPage />;
-    case 'register':         return <RegisterPage />;
-    case 'verify-email':     return <VerifyEmailPage />;
-    case 'forgot-password':  return <ForgotPasswordPage />;
-    case 'reset-password':   return <ResetPasswordPage />;
-    case 'cart':             return <CartPage />;
-    case 'product':          return <ProductPage />;
-    case 'tracking':         return <OrderTrackingPage />;
-    case 'loyalty':          return <LoyaltyPage />;
-    case 'producer':         return <ProducerDashboardPage />;
-    case 'notifications':    return <NotificationsPage />;
-    case 'admin':            return <AdminPage />;
-
-    default:                 return null;
-  }
+  const CurrentPage = PAGES[page];
+  return CurrentPage ? <CurrentPage /> : null;
 }

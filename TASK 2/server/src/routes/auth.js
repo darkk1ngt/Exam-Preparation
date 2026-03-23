@@ -3,7 +3,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { query } from '../database/connection.js';
-import { isValidEmail, isValidPassword, sendEmail } from '../utils/index.js';
+import { isValidEmail, isValidPassword, isValidUkPhone, normalizeUkPhone, sendEmail } from '../utils/index.js';
 
 const router = express.Router();
 
@@ -27,11 +27,82 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'role must be customer or producer' });
     }
 
+    if (role === 'producer' && (!farm_name || !contact_number)) {
+        return res.status(400).json({ error: 'farm_name and contact_number are required for producers' });
+    }
+
+    const trimmedFarmName = typeof farm_name === 'string' ? farm_name.trim() : '';
+    const normalizedContactNumber = normalizeUkPhone(contact_number);
+
+    if (role === 'producer' && !trimmedFarmName) {
+        return res.status(400).json({ error: 'farm_name is required for producers' });
+    }
+
+    if (role === 'producer' && !isValidUkPhone(contact_number)) {
+        return res.status(400).json({ error: 'Invalid UK contact_number format' });
+    }
+
     try {
         // Check if user exists
-        const existing = await query('SELECT id FROM users WHERE email = ?', [email]);
+        const existing = await query('SELECT id, role, email_verified FROM users WHERE email = ?', [email]);
         if (existing.length > 0) {
-            return res.status(409).json({ error: 'Email already registered' });
+            const existingUser = existing[0];
+
+            if (existingUser.email_verified) {
+                return res.status(409).json({ error: 'Email already registered' });
+            }
+
+            if (existingUser.role !== role) {
+                return res.status(409).json({ error: 'Unverified account already exists with a different role' });
+            }
+
+            // Re-register unverified account by rotating password + verification token
+            const passwordHash = await bcrypt.hash(password, 10);
+            const emailVerifyToken = crypto.randomBytes(32).toString('hex');
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+            await query(
+                `UPDATE users
+                 SET password_hash = ?,
+                     farm_name = ?,
+                     contact_number = ?,
+                     producer_status = ?,
+                     email_verify_token = ?
+                 WHERE id = ?`,
+                [
+                    passwordHash,
+                    role === 'producer' ? trimmedFarmName : null,
+                    role === 'producer' ? normalizedContactNumber : null,
+                    role === 'producer' ? 'pending' : null,
+                    emailVerifyToken,
+                    existingUser.id
+                ]
+            );
+
+            if (role === 'customer') {
+                await query(
+                    `INSERT INTO loyalty (customer_id, points_balance, discount_threshold, points_rate)
+                     VALUES (?, 0, 100, 1.00)
+                     ON DUPLICATE KEY UPDATE customer_id = customer_id`,
+                    [existingUser.id]
+                );
+            }
+
+            const verifyLink = `${frontendUrl}/verify-email?token=${emailVerifyToken}`;
+            await sendEmail(
+                email,
+                'Verify your email',
+                `<p>Click <a href="${verifyLink}">here</a> to verify your email.</p>`
+            );
+
+            console.log(`\n  EMAIL TOKEN ROTATED FOR ${email}:`);
+            console.log(` Verification Link: ${verifyLink}\n`);
+
+            return res.status(200).json({
+                message: 'Account exists but is not verified. A new verification link has been sent.',
+                userId: existingUser.id,
+                verifyToken: emailVerifyToken
+            });
         }
 
         // Hash password
@@ -48,8 +119,8 @@ router.post('/register', async (req, res) => {
                 email,
                 passwordHash,
                 role,
-                role === 'producer' ? farm_name : null,
-                role === 'producer' ? contact_number : null,
+                role === 'producer' ? trimmedFarmName : null,
+                role === 'producer' ? normalizedContactNumber : null,
                 emailVerifyToken,
                 role === 'producer' ? 'pending' : null
             ]
@@ -57,9 +128,11 @@ router.post('/register', async (req, res) => {
 
         const userId = insertResult.insertId;
 
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
         // Log verification link to console (development)
         console.log(`\n  EMAIL TOKEN FOR ${email}:`);
-        console.log(` Verification Link: http://localhost:5173/verify-email?token=${emailVerifyToken}\n`);
+        console.log(` Verification Link: ${frontendUrl}/verify-email?token=${emailVerifyToken}\n`);
 
         // Create loyalty record for customers
         if (role === 'customer') {
@@ -67,7 +140,7 @@ router.post('/register', async (req, res) => {
         }
 
         // Send verification email
-        const verifyLink = `${process.env.FRONTEND_URL}/verify-email?token=${emailVerifyToken}`;
+        const verifyLink = `${frontendUrl}/verify-email?token=${emailVerifyToken}`;
         await sendEmail(
             email,
             'Verify your email',
@@ -165,6 +238,59 @@ router.get('/verify-email', async (req, res) => {
     } catch (error) {
         console.error('Verify email error:', error);
         return res.status(500).json({ error: 'Verification failed' });
+    }
+});
+
+// POST /resend-verification
+router.post('/resend-verification', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'email required' });
+    }
+
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    try {
+        const users = await query(
+            'SELECT id, email_verified FROM users WHERE email = ? LIMIT 1',
+            [email]
+        );
+
+        if (users.length === 0) {
+            // Keep response generic to avoid email enumeration
+            return res.json({ message: 'If your account exists, a verification email has been sent.' });
+        }
+
+        const user = users[0];
+        if (user.email_verified) {
+            return res.json({ message: 'Email already verified. You can log in now.' });
+        }
+
+        const emailVerifyToken = crypto.randomBytes(32).toString('hex');
+        await query('UPDATE users SET email_verify_token = ? WHERE id = ?', [emailVerifyToken, user.id]);
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const verifyLink = `${frontendUrl}/verify-email?token=${emailVerifyToken}&email=${encodeURIComponent(email)}`;
+
+        await sendEmail(
+            email,
+            'Verify your email',
+            `<p>Click <a href="${verifyLink}">here</a> to verify your email.</p>`
+        );
+
+        console.log(`\n  RESENT EMAIL TOKEN FOR ${email}:`);
+        console.log(` Verification Link: ${verifyLink}\n`);
+
+        return res.json({
+            message: 'Verification email resent. Please check your inbox.',
+            verifyToken: emailVerifyToken
+        });
+    } catch (error) {
+        console.error('Resend verification error:', error);
+        return res.status(500).json({ error: 'Failed to resend verification email' });
     }
 });
 

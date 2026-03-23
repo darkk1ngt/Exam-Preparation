@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
-import Sidebar from '../components/Sidebar.jsx';
+import AccountSidebar from '../components/AccountSidebar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -28,8 +29,7 @@ const LoyaltyPage = () => {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate('login'); return; }
-    fetch('/api/loyalty', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
+    api.get('/loyalty')
       .then(data => { setLoyalty(data); setLoading(false); })
       .catch(() => setLoading(false));
   }, [user, authLoading]);
@@ -50,14 +50,7 @@ const LoyaltyPage = () => {
       <div className="breadcrumb"><a onClick={() => navigate('home')} style={{cursor:'pointer'}}>Home</a> / <span style={{color:'var(--charcoal)'}}>Loyalty Rewards</span></div>
 
       <div className="layout">
-        <Sidebar heading="My Account">
-          <a className="sidebar-item" style={{cursor:'pointer'}} onClick={() => navigate('tracking')}>My Orders</a>
-          <a className="sidebar-item active">Loyalty Points</a>
-          <a className="sidebar-item">Account Details</a>
-          <a className="sidebar-item" style={{cursor:'pointer'}} onClick={() => navigate('notifications')}>
-            <svg style={{width:'17px',height:'17px',fill:'none',stroke:'#fff',strokeWidth:1.8}} viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifications
-          </a>
-        </Sidebar>
+        <AccountSidebar activeKey="loyalty" navigate={navigate} />
 
         <div className="main">
           <div className="page-title" style={{marginBottom:'16px'}}>Loyalty Rewards</div>

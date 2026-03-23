@@ -2,6 +2,7 @@ import { useState } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
 const ResetPasswordPage = () => {
@@ -20,19 +21,10 @@ const ResetPasswordPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, newPassword: password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Reset failed.');
-      } else {
-        setDone(true);
-      }
-    } catch {
-      setError('Network error — check server is running.');
+      await api.post('/auth/reset-password', { token, newPassword: password });
+      setDone(true);
+    } catch (err) {
+      setError(err.message || 'Network error — check server is running.');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
+import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -12,8 +14,7 @@ const AdminPage = () => {
   const [msg, setMsg] = useState('');
 
   const fetchProducers = useCallback(() => {
-    fetch('/api/admin/producers', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : { producers: [] })
+    api.get('/admin/producers')
       .then(data => { setProducers(data.producers || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
@@ -25,13 +26,27 @@ const AdminPage = () => {
   }, [user, authLoading]);
 
   const approve = async (id) => {
-    const res = await fetch(`/api/admin/producers/${id}/approve`, { method: 'PUT', credentials: 'include' });
-    if (res.ok) { setMsg('Producer approved'); fetchProducers(); setTimeout(() => setMsg(''), 3000); }
+    try {
+      await api.put(`/admin/producers/${id}/approve`);
+      setMsg('Producer approved');
+      fetchProducers();
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Failed to approve producer');
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
 
   const reject = async (id) => {
-    const res = await fetch(`/api/admin/producers/${id}/reject`, { method: 'PUT', credentials: 'include' });
-    if (res.ok) { setMsg('Producer rejected'); fetchProducers(); setTimeout(() => setMsg(''), 3000); }
+    try {
+      await api.put(`/admin/producers/${id}/reject`);
+      setMsg('Producer rejected');
+      fetchProducers();
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Failed to reject producer');
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
 
   if (authLoading || loading) return <div style={{padding:'60px', textAlign:'center', color:'#888'}}>Loading…</div>;
@@ -121,6 +136,7 @@ const AdminPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

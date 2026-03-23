@@ -2,6 +2,7 @@ import { useState } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
@@ -18,23 +19,13 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Login failed');
-      } else {
-        login(data.user);
-        if (data.user.role === 'producer') navigate('producer');
-        else if (data.user.role === 'admin') navigate('admin');
-        else navigate('home');
-      }
-    } catch {
-      setError('Network error — check server is running');
+      const data = await api.post('/auth/login', { email, password });
+      login(data.user);
+      if (data.user.role === 'producer') navigate('producer');
+      else if (data.user.role === 'admin') navigate('admin');
+      else navigate('home');
+    } catch (err) {
+      setError(err.message || 'Network error — check server is running');
     } finally {
       setLoading(false);
     }

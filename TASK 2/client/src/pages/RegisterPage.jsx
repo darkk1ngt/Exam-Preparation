@@ -2,16 +2,43 @@ import { useState } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useNavigation } from '../context/NavigationContext.jsx';
+import {
+  UK_CITY_AREAS,
+  formatUkPhoneInput,
+  normalizeUkPhone,
+  formatUkPostcodeInput,
+  normalizeUkPostcode,
+  getUkPostcodeHint,
+} from '../data/ukLocations.js';
 
 const RegisterPage = () => {
   const { navigate } = useNavigation();
-  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', role: 'customer', telephone: '' });
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: 'customer',
+    farm_name: '',
+    contact_number: '',
+    city: 'Gloucester, Gloucestershire',
+    postcode: '',
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const postcodeHint = getUkPostcodeHint(form.city);
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
+  const setPhone = (e) => {
+    const formatted = formatUkPhoneInput(e.target.value);
+    setForm((f) => ({ ...f, contact_number: formatted }));
+  };
+  const setPostcode = (e) => {
+    const formatted = formatUkPostcodeInput(e.target.value);
+    setForm((f) => ({ ...f, postcode: formatted }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,22 +47,41 @@ const RegisterPage = () => {
       setError('Passwords do not match');
       return;
     }
+
+    const normalizedPostcode = normalizeUkPostcode(form.postcode);
+    if (!normalizedPostcode) {
+      setError(`Enter a valid UK postcode, for example ${postcodeHint}`);
+      return;
+    }
+
+    if (!form.city) {
+      setError('Please select a city/area');
+      return;
+    }
+
+    if (form.role === 'producer' && (!form.farm_name || !form.contact_number)) {
+      setError('Farm name and contact number are required for producer accounts');
+      return;
+    }
+
+    const normalizedPhone = normalizeUkPhone(form.contact_number);
+    if (form.role === 'producer' && !normalizedPhone) {
+      setError('Enter a valid UK phone number, for example +44 7123 456 789');
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: form.email, password: form.password, role: form.role }),
+      const data = await api.post('/auth/register', {
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        farm_name: form.role === 'producer' ? form.farm_name.trim() : undefined,
+        contact_number: form.role === 'producer' ? normalizedPhone : undefined,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Registration failed');
-      } else {
-        navigate('verify-email', { token: data.verifyToken });
-      }
-    } catch {
-      setError('Network error — check server is running');
+      navigate('verify-email', { token: data.verifyToken, email: form.email.trim() });
+    } catch (err) {
+      setError(err.message || 'Network error — check server is running');
     } finally {
       setLoading(false);
     }
@@ -72,6 +118,25 @@ const RegisterPage = () => {
                   <option value="producer">Producer / Farm</option>
                 </select>
               </div>
+              {form.role === 'producer' && (
+                <>
+                  <div className="form-row">
+                    <span className="form-label">Farm Name:<span className="req">*</span></span>
+                    <input type="text" className="form-input" value={form.farm_name} onChange={set('farm_name')} required />
+                  </div>
+                  <div className="form-row">
+                    <span className="form-label">Contact Number:<span className="req">*</span></span>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      value={form.contact_number}
+                      onChange={setPhone}
+                      required
+                      placeholder="+44 7123 456 789"
+                    />
+                  </div>
+                </>
+              )}
               <div className="form-row">
                 <span className="form-label">E-Mail:<span className="req">*</span></span>
                 <input type="email" className="form-input" value={form.email} onChange={set('email')} required />
@@ -98,16 +163,48 @@ const RegisterPage = () => {
               </div>
               <div className="form-row">
                 <span className="form-label">Post Code:<span className="req">*</span></span>
-                <input type="text" className="form-input" />
+                <input
+                  type="text"
+                  className="form-input"
+                  value={form.postcode}
+                  onChange={setPostcode}
+                  placeholder={postcodeHint}
+                  required
+                />
+                <div style={{ fontSize: '11px', color: '#7a7a7a', marginTop: '4px' }}>
+                  Example for selected city/area: {postcodeHint}
+                </div>
               </div>
               <div className="form-row">
                 <span className="form-label">City:<span className="req">*</span></span>
-                <input type="text" className="form-input" defaultValue="Gloucester" style={{color:'#555'}} />
+                <>
+                  <input
+                    list="uk-city-areas"
+                    className="form-input"
+                    value={form.city}
+                    onChange={set('city')}
+                    placeholder="Type to search city or area"
+                    required
+                  />
+                  <datalist id="uk-city-areas">
+                    {UK_CITY_AREAS.map((city) => (
+                      <option key={city} value={city} />
+                    ))}
+                  </datalist>
+                </>
               </div>
-              <div className="form-row">
-                <span className="form-label">Telephone:<span className="req">*</span></span>
-                <input type="tel" className="form-input" value={form.telephone} onChange={set('telephone')} />
-              </div>
+              {form.role !== 'producer' && (
+                <div className="form-row">
+                  <span className="form-label">Telephone:</span>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    value={form.contact_number}
+                    onChange={setPhone}
+                    placeholder="+44 7123 456 789"
+                  />
+                </div>
+              )}
               <div className="form-row">
                 <span className="form-label">Country:</span>
                 <span style={{fontSize:'12px', color:'#555'}}>United Kingdom</span>

@@ -5,8 +5,10 @@
   "type": "module",
   "main": "src/Server.js",
   "scripts": {
-    "dev": "node src/Server.js",
-    "start": "node src/Server.js"
+    "dev": "nodemon src/Server.js",
+    "start": "node src/Server.js",
+    "seed": "node src/database/seed.js",
+    "fix-images": "node src/database/fixImages.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -21,5 +23,7 @@
     "cloudinary": "^1.40.0",
     "nodemailer": "^6.9.7"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
 }

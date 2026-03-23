@@ -8,6 +8,66 @@ const router = express.Router();
 
 router.use(requireProducer);
 
+const STATUS_TRANSITIONS = {
+    pending: ['confirmed', 'cancelled'],
+    confirmed: ['ready', 'cancelled'],
+    ready: ['out_for_delivery', 'collected', 'cancelled'],
+    out_for_delivery: ['delivered', 'cancelled'],
+    collected: [],
+    delivered: [],
+    cancelled: []
+};
+
+function normalizeProductPayload(body) {
+    const normalized = {};
+
+    if (body.name !== undefined) {
+        normalized.name = typeof body.name === 'string' ? body.name.trim() : body.name;
+    }
+
+    if (body.description !== undefined) {
+        normalized.description = typeof body.description === 'string' ? body.description.trim() : body.description;
+    }
+
+    if (body.category !== undefined) {
+        normalized.category = typeof body.category === 'string' ? body.category.trim() : body.category;
+    }
+
+    if (body.image_url !== undefined) {
+        normalized.image_url = typeof body.image_url === 'string' ? body.image_url.trim() : body.image_url;
+    }
+
+    if (body.price !== undefined) {
+        normalized.price = Number(body.price);
+    }
+
+    if (body.stock_quantity !== undefined) {
+        normalized.stock_quantity = Number(body.stock_quantity);
+    }
+
+    return normalized;
+}
+
+function validateProductPayload(payload, { requireNameAndPrice = false } = {}) {
+    if (requireNameAndPrice && (!payload.name || payload.price === undefined || Number.isNaN(payload.price))) {
+        return 'name and valid price required';
+    }
+
+    if (payload.name !== undefined && (!payload.name || payload.name.length < 2 || payload.name.length > 150)) {
+        return 'name must be between 2 and 150 characters';
+    }
+
+    if (payload.price !== undefined && (Number.isNaN(payload.price) || payload.price <= 0)) {
+        return 'price must be a positive number';
+    }
+
+    if (payload.stock_quantity !== undefined && (!Number.isInteger(payload.stock_quantity) || payload.stock_quantity < 0)) {
+        return 'stock_quantity must be a non-negative integer';
+    }
+
+    return null;
+}
+
 // Multer config for image upload
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -68,16 +128,24 @@ router.get('/products', async (req, res) => {
 
 // POST /products
 router.post('/products', async (req, res) => {
-    const { name, description, category, price, stock_quantity, image_url } = req.body;
-
-    if (!name || !price) {
-        return res.status(400).json({ error: 'name and price required' });
+    const payload = normalizeProductPayload(req.body);
+    const validationError = validateProductPayload(payload, { requireNameAndPrice: true });
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
     }
 
     try {
         const result = await query(
             'INSERT INTO products (producer_id, name, description, category, price, stock_quantity, image_url, is_available) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE)',
-            [req.session.user.id, name, description || null, category || null, price, stock_quantity || 0, image_url || null]
+            [
+                req.session.user.id,
+                payload.name,
+                payload.description || null,
+                payload.category || null,
+                payload.price,
+                payload.stock_quantity ?? 0,
+                payload.image_url || null
+            ]
         );
         return res.status(201).json({ productId: result.insertId });
     } catch (error) {
@@ -89,7 +157,11 @@ router.post('/products', async (req, res) => {
 // PUT /products/:id
 router.put('/products/:id', async (req, res) => {
     const { id } = req.params;
-    const { name, description, category, price, stock_quantity, image_url } = req.body;
+    const payload = normalizeProductPayload(req.body);
+    const validationError = validateProductPayload(payload);
+    if (validationError) {
+        return res.status(400).json({ error: validationError });
+    }
 
     try {
         // Verify ownership
@@ -105,12 +177,12 @@ router.put('/products/:id', async (req, res) => {
         const updates = [];
         const values = [];
 
-        if (name !== undefined) { updates.push('name = ?'); values.push(name); }
-        if (description !== undefined) { updates.push('description = ?'); values.push(description); }
-        if (category !== undefined) { updates.push('category = ?'); values.push(category); }
-        if (price !== undefined) { updates.push('price = ?'); values.push(price); }
-        if (stock_quantity !== undefined) { updates.push('stock_quantity = ?'); values.push(stock_quantity); }
-        if (image_url !== undefined) { updates.push('image_url = ?'); values.push(image_url); }
+        if (payload.name !== undefined) { updates.push('name = ?'); values.push(payload.name); }
+        if (payload.description !== undefined) { updates.push('description = ?'); values.push(payload.description); }
+        if (payload.category !== undefined) { updates.push('category = ?'); values.push(payload.category); }
+        if (payload.price !== undefined) { updates.push('price = ?'); values.push(payload.price); }
+        if (payload.stock_quantity !== undefined) { updates.push('stock_quantity = ?'); values.push(payload.stock_quantity); }
+        if (payload.image_url !== undefined) { updates.push('image_url = ?'); values.push(payload.image_url); }
 
         if (updates.length === 0) {
             return res.status(400).json({ error: 'No fields to update' });
@@ -246,7 +318,7 @@ router.put('/orders/:id/status', async (req, res) => {
     try {
         // Verify order involves this producer
         const orderCheck = await query(
-            `SELECT o.id FROM orders o
+            `SELECT o.id, o.status FROM orders o
              JOIN order_items oi ON o.id = oi.order_id
              JOIN products p ON oi.product_id = p.id
              WHERE o.id = ? AND p.producer_id = ?`,
@@ -255,6 +327,18 @@ router.put('/orders/:id/status', async (req, res) => {
 
         if (orderCheck.length === 0) {
             return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        const currentStatus = orderCheck[0].status;
+        if (currentStatus === status) {
+            return res.status(400).json({ error: 'Order already has this status' });
+        }
+
+        const allowedNextStatuses = STATUS_TRANSITIONS[currentStatus] || [];
+        if (!allowedNextStatuses.includes(status)) {
+            return res.status(400).json({
+                error: `Invalid status transition from ${currentStatus} to ${status}`
+            });
         }
 
         await query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);

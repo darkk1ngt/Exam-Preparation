@@ -22,6 +22,19 @@ import notificationsRoutes from './routes/notifications.js';
 import dashboardRoutes from './routes/dashboard.js';
 import adminRoutes from './routes/admin.js';
 
+const API_ROUTES = [
+    ['/api/auth', authRoutes],
+    ['/api/profile', profileRoutes],
+    ['/api/products', productsRoutes],
+    ['/api/cart', cartRoutes],
+    ['/api/orders', ordersRoutes],
+    ['/api/slots', slotsRoutes],
+    ['/api/loyalty', loyaltyRoutes],
+    ['/api/notifications', notificationsRoutes],
+    ['/api/dashboard', dashboardRoutes],
+    ['/api/admin', adminRoutes],
+];
+
 // Validate required environment variables
 const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_NAME'];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
@@ -78,7 +91,7 @@ const authLimiter = createLimiter(15 * 60 * 1000, 10, 'Too many login/register a
 
 /* APPLICATION OF RATE LIMITERS - DISABLED FOR DEVELOPMENT */
 // app.use('/api/auth/login',authLimiter);
-// app.use('/api/auth/register',authLimiter);
+// app.use('/api/auth/register',authLimiter)
 
 app.use(session({
     secret : process.env.SESSION_SECRET,
@@ -111,16 +124,9 @@ app.use((request, response, next) => {
 });
 
 /* ROUTES */
-app.use('/api/auth', authRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/products', productsRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/orders', ordersRoutes);
-app.use('/api/slots', slotsRoutes);
-app.use('/api/loyalty', loyaltyRoutes);
-app.use('/api/notifications', notificationsRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/admin', adminRoutes);
+for (const [path, handler] of API_ROUTES) {
+    app.use(path, handler);
+}
 
 /* HEALTH CHECK */
 app.get('/api/health', async (request, response) => {

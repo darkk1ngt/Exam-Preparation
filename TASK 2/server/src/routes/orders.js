@@ -1,6 +1,7 @@
 import express from 'express';
 import { query, getPool } from '../database/connection.js';
 import { requireAuth } from '../utils/middleware.js';
+import { isValidUkPostcode, normalizeUkPostcode } from '../utils/index.js';
 
 const router = express.Router();
 
@@ -9,6 +10,10 @@ router.use(requireAuth);
 // POST / - Place order with transaction handling
 router.post('/', async (req, res) => {
     const { collection_slot_id, fulfilment_type, delivery_address_line1, delivery_address_line2, delivery_city, delivery_postcode } = req.body;
+    const trimmedDeliveryAddress1 = typeof delivery_address_line1 === 'string' ? delivery_address_line1.trim() : '';
+    const trimmedDeliveryAddress2 = typeof delivery_address_line2 === 'string' ? delivery_address_line2.trim() : '';
+    const trimmedDeliveryCity = typeof delivery_city === 'string' ? delivery_city.trim() : '';
+    const normalizedDeliveryPostcode = normalizeUkPostcode(delivery_postcode);
 
     if (!fulfilment_type || !['collection', 'delivery'].includes(fulfilment_type)) {
         return res.status(400).json({ error: 'Invalid fulfilment_type' });
@@ -18,8 +23,12 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'collection_slot_id required for collection' });
     }
 
-    if (fulfilment_type === 'delivery' && (!delivery_address_line1 || !delivery_city || !delivery_postcode)) {
+    if (fulfilment_type === 'delivery' && (!trimmedDeliveryAddress1 || !trimmedDeliveryCity || !delivery_postcode)) {
         return res.status(400).json({ error: 'Delivery address required' });
+    }
+
+    if (fulfilment_type === 'delivery' && !isValidUkPostcode(delivery_postcode)) {
+        return res.status(400).json({ error: 'Invalid UK postcode format' });
     }
 
     const pool = getPool();
@@ -30,7 +39,7 @@ router.post('/', async (req, res) => {
 
         // Get cart items
         const [cartItems] = await connection.query(
-            `SELECT c.product_id, c.quantity, p.name as product_name, p.price, p.stock_quantity
+            `SELECT c.product_id, c.quantity, p.name as product_name, p.price, p.stock_quantity, p.is_available
              FROM cart_items c
              JOIN products p ON c.product_id = p.id
              WHERE c.customer_id = ?`,
@@ -40,6 +49,14 @@ router.post('/', async (req, res) => {
         if (cartItems.length === 0) {
             await connection.rollback();
             return res.status(400).json({ error: 'Cart is empty' });
+        }
+
+        // Check product availability
+        for (const item of cartItems) {
+            if (!item.is_available) {
+                await connection.rollback();
+                return res.status(409).json({ error: `Product unavailable: ${item.product_name}` });
+            }
         }
 
         // Check stock availability
@@ -103,10 +120,10 @@ router.post('/', async (req, res) => {
                 totalPrice,
                 discountApplied,
                 fulfilment_type,
-                delivery_address_line1 || null,
-                delivery_address_line2 || null,
-                delivery_city || null,
-                delivery_postcode || null
+                fulfilment_type === 'delivery' ? trimmedDeliveryAddress1 : null,
+                fulfilment_type === 'delivery' ? (trimmedDeliveryAddress2 || null) : null,
+                fulfilment_type === 'delivery' ? trimmedDeliveryCity : null,
+                fulfilment_type === 'delivery' ? normalizedDeliveryPostcode : null
             ]
         );
 

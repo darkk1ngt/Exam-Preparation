@@ -2,6 +2,7 @@ import { useState } from 'react';
 import '../styles/glh.css';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
 const ForgotPasswordPage = () => {
@@ -16,20 +17,10 @@ const ForgotPasswordPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Request failed');
-      } else {
-        setSubmitted(true);
-      }
-    } catch {
-      setError('Network error — check server is running');
+      await api.post('/auth/forgot-password', { email });
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message || 'Network error — check server is running');
     } finally {
       setLoading(false);
     }

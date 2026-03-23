@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar.jsx';
 import Footer from '../components/Footer.jsx';
+import api from '../api/api.js';
 import { useNavigation } from '../context/NavigationContext.jsx';
 
 const VerifyEmailPage = () => {
   const { params, navigate } = useNavigation();
   const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'error'
   const [message, setMessage] = useState('');
+  const [resendEmail, setResendEmail] = useState(params?.email || '');
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
 
   useEffect(() => {
     const verify = async () => {
@@ -18,24 +22,34 @@ const VerifyEmailPage = () => {
       }
 
       try {
-        const res = await fetch(`/api/auth/verify-email?token=${token}`, {
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setStatus('success');
-        } else {
-          setStatus('error');
-          setMessage(data.error || 'Verification failed.');
-        }
-      } catch {
+        await api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+        setStatus('success');
+      } catch (err) {
         setStatus('error');
-        setMessage('Network error — check server is running.');
+        setMessage(err.message || 'Network error — check server is running.');
       }
     };
 
     verify();
-  }, []);
+  }, [params?.token]);
+
+  const handleResend = async () => {
+    setResendMessage('');
+    if (!resendEmail.trim()) {
+      setResendMessage('Please enter your email address first.');
+      return;
+    }
+
+    setResending(true);
+    try {
+      const result = await api.post('/auth/resend-verification', { email: resendEmail.trim() });
+      setResendMessage(result?.message || 'Verification email resent.');
+    } catch (err) {
+      setResendMessage(err.message || 'Failed to resend verification email.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div>
@@ -70,6 +84,27 @@ const VerifyEmailPage = () => {
               Verification Failed
             </div>
             <p style={{ fontSize: '13px', color: '#555', marginBottom: '24px' }}>{message}</p>
+            <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', marginBottom: '6px', color: '#555' }}>Resend verification email</div>
+              <input
+                type="email"
+                className="form-input"
+                value={resendEmail}
+                onChange={(e) => setResendEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+              <button
+                className="btn btn-deep"
+                style={{ marginTop: '10px', width: '100%' }}
+                onClick={handleResend}
+                disabled={resending}
+              >
+                {resending ? 'Resending…' : 'Resend Verification Email'}
+              </button>
+              {resendMessage && (
+                <p style={{ fontSize: '12px', color: '#555', marginTop: '8px' }}>{resendMessage}</p>
+              )}
+            </div>
             <button className="btn btn-deep" onClick={() => navigate('register')}>
               Back to Register ›
             </button>
